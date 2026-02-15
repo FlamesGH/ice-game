@@ -1771,7 +1771,7 @@ const Game = {
                 // B2: 没比赛了，说明玩家点击的是"赛季结束"按钮
                 // 1. 生成总结报告HTML字符串
             let summary = `<h3 style="text-align:center;">本赛季总结</h3><ul style="text-align:left; list-style-position: inside; padding-left:0;">`;
-            summary += `<li>国际赛资格：${State.seasonQualified ? `是 ${State.luckyFish ? '(<span style=\\"color:#e17055;\\">幸运递补</span>)' : ''}` : '否'}</li>`;
+            summary += `<li>国际赛资格：${State.seasonQualified ? ${State.seasonQualified ? `是`  : '否'}</li>`;
             summary += `<li>总决赛资格：${State.qualifiedForGPFinalThisSeason ? '<span style=\\"color:#00b894;\\">是</span>' : '否'}</li>`;
             summary += `<hr style="border:none; border-top:1px dashed #ccc; margin: 8px 0;">`;
             summary += `<li>训练次数：${State.trainsThisSeason}</li>`;
@@ -2191,7 +2191,7 @@ if (!config) {
         if (State.luckyFish) badges.push("【奇迹锦鲤】");
       if (State.hasBadgeSoftHeart) badges.push("【心软の神】"); // 新增成就
       if (State.totalRestsAllTime > 24) badges.push("【劳逸结合】");
-if (State.totalRestsAllTime < 10) badges.push("【永动机】");
+if (State.totalRestsAllTime < 10) badges.push("【自律先锋】");
         if (State.hasOlympicGold && State.medals.iG >= 3) badges.push("【全满贯】");
         
         document.getElementById('end-badges').innerText = badges.join(" ");
@@ -2664,3 +2664,4 @@ UI.renderPrologue();
 </body>
 
 </html>
+
