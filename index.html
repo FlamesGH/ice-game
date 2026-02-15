@@ -1,0 +1,2666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花滑模拟器 </title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS 样式区 (保持不变) */
+        :root {
+          /* 强制所有交互元素使用同样的字体 */
+button, input, select, textarea {
+    font-family: 'Noto Sans SC', -apple-system, sans-serif;
+}
+            --ins-color: #a29bfe; --art-color: #fab1a0; --bod-color: #81ecec;
+            --pow-color: #ff7675; --hp-high: #55efc4; --hp-mid: #ffeaa7;
+            --hp-low: #d63031; --bg-color: #2d3436; --panel-bg: #dfe6e9;
+            --text-main: #2d3436;
+        }
+        body {
+    /* 优先使用下载的思源黑体，如果下载失败则使用系统备用黑体 */
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+   -webkit-text-size-adjust: 100%; /* 禁止 iOS 自动调整字体大小 */
+    text-size-adjust: 100%;         /* 禁止安卓自动调整字体大小 */
+}
+        #game-container { width: 100%; max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); overflow: hidden; min-height: 80vh; position: relative; display: flex; flex-direction: column; }
+        .screen { display: none; padding: 20px; flex: 1; overflow-y: auto; animation: fadeIn 0.5s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .btn { display: block; width: 100%; padding: 13px; margin: 8px 0; border: none; border-radius: 5px; background-color: #74b9ff; color: white; font-size: 13.5px; cursor: pointer; transition: background 0.2s; text-align: left; }
+        .btn:hover { background-color: #0984e3; }
+        .btn:disabled { background-color: #b2bec3; cursor: not-allowed; }
+        .btn small { display: block; font-size: 12px; opacity: 0.8; margin-top: 4px; }
+        .stat-row { margin-bottom: 12px; display: flex; align-items: center; font-size: 13px; }
+        .stat-label { width: 60px; font-weight: bold; }
+        .progress-bg { flex-grow: 1; height: 14px; background: #b2bec3; border-radius: 8px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
+        .stat-val { width: 50px; text-align: right; font-size: 10px; margin-left: 5px; }
+        .marker { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(255,255,255,0.6); z-index: 2; }
+        .top-bar { background: #636e72; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }
+      .control-panel { font-size: 13px; }
+      .training-grid { font-size: 13px; }
+        .control-panel { background: var(--panel-bg); padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .training-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mode-select { display: flex; gap: 5px; margin-top: 10px; }
+        .mode-btn { flex: 1; padding: 8px; font-size: 11px; border: 1px solid #b2bec3; background: white; cursor: pointer; }
+        .mode-btn.selected { background: #2d3436; color: white; }
+        .log-box { height: 120px; overflow-y: auto; background: #f1f2f6; border: 1px solid #dcdde1; padding: 8px; font-size: 11px; margin-top: 15px; border-radius: 5px; }
+        .log-item { border-bottom: 1px solid #dfe6e9; padding: 4px 0; }
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: white; width: 80%; max-width: 400px; padding: 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; color: var(--text-main); }
+        .modal-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; }
+        .modal-content { font-size: 13px; margin-bottom: 20px; line-height: 1.5; text-align: left;}
+        .modal-btn { background: #74b9ff; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .modal-btn:hover { background: #0984e3; }
+        .shop-modal-content { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 100; color: white; padding: 20px; display: none; overflow-y: auto; font-size: 14px;}
+        .shop-item { border: 1px solid #636e72; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 13px;}
+        h2 { border-bottom: 2px solid #b2bec3; padding-bottom: 10px; margin-top: 0; }
+           /* --- 首页特定样式插入 --- */
+        .start-screen {
+            display: none;           /* 初始隐藏，由JS控制显示 */
+            flex-direction: column;  /* 元素垂直排列 */
+            justify-content: center; /* 内容垂直居中 */
+            align-items: center;     /* 内容水平居中 */
+            height: 100%;            /* 占满容器 */
+            padding: 40px;
+            text-align: center;      /* 文字居中 */
+            background: linear-gradient(to bottom, #ffffff, #dfe6e9); /* 冰雪渐变色 */
+        }
+        .start-screen.active { display: flex; } /* 当激活时，使用 Flex 布局显示 */
+
+        .main-title { font-size: 40px; font-weight: 900; margin: 0; color: #2d3436; letter-spacing: 2px; text-shadow: 2px 2px 0px #b2bec3; }
+        .sub-title { font-size: 14px; color: #636e72; margin-top: 5px; font-weight: 300; }
+        .credits { font-size: 12px; color: #b2bec3; margin-top: 5px; margin-bottom: 40px; font-style: italic; }
+        .intro-text { font-size: 13px; line-height: 1.8; color: #555; margin-bottom: 50px; max-width: 85%; background: rgba(255,255,255,0.6); padding: 15px; border-radius: 8px; }
+        
+        .start-btn {
+            background-color: #74b9ff; color: white; font-size: 18px; font-weight: bold; padding: 15px 50px;
+            border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(116, 185, 255, 0.4);
+            transition: all 0.3s ease; animation: pulse 2s infinite;
+        }
+        .start-btn:hover { background-color: #0984e3; transform: translateY(-2px); }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+      /* --- 专门控制序章剧情文字的大小 --- */
+        #screen-prologue p {
+            font-size: 15px;       /* 这里修改数字：18px, 20px, 24px 等 */
+            line-height: 1.8;      /* 这里修改行高：让字之间不要太挤 */
+            font-weight: bold;   /* 如果想加粗，这里改成 bold */
+            color: #2d3436;        /* 文字颜色 */
+            margin-bottom: 30px;   /* 文字和下面选项按钮的距离 */
+        }
+      /* --- 专门控制结局描述文字（end-desc）的大小和样式 --- */
+        #end-desc {
+            font-size: 14px; 
+          font-weight: bold; /* 修改字号：建议设为 20px 或 22px，让结局更有冲击力 */
+            line-height: 1.8;          /* 行间距：让大段文字读起来更轻松 */
+            color: #2d3436;            /* 文字颜色 */
+            text-align: center;        /* 结局文字通常建议居中显示 */
+            margin: 20px auto;         /* 上下外边距 20px，左右自动居中 */
+            max-width: 85%;            /* 限制最大宽度，防止文字在宽屏上太散 */
+            white-space: pre-wrap;     /* 允许保留换行符 */
+        }
+      /* --- 专门控制第一章及后续章节：剧情描述文字的内容 --- */
+        #story-text {
+            font-size: 14px; 
+          font-weight: bold;  /* 修改字号：建议比序章稍微小一点，18px 或 20px */
+            line-height: 1.7;      /* 行间距：确保手机阅读不吃力 */
+            color: #2d3436;        /* 颜色：深灰色，保护视力 */
+            margin: 15px 0;        /* 上下间距 */
+            text-align: left;      /* 左对齐 */
+        }
+            /* --- 新增：手机端强制全屏适配 --- */
+        @media screen and (max-width: 600px) {
+            body {
+                padding: 0;       /* 核心修改：去除四周留白 */
+                align-items: flex-start; /* 防止垂直居中导致头部被切掉 */
+                background-color: white; /* 手机端背景直接变白，防止刘海屏漏出黑边 */
+            }
+
+            #game-container {
+                width: 100%;      /* 宽度占满 */
+                height: 100vh;    /* 核心修改：高度强制占满 100% 视口高度 */
+                min-height: 100vh;
+                max-width: 100%;  /* 取消最大宽度限制 */
+                border-radius: 0; /* 核心修改：去除圆角，变成直角全屏 */
+                box-shadow: none; /* 去除阴影，手机端不需要立体感 */
+            }
+            
+            /* 针对手机端优化一下内容区域的滚动 */
+            .content {
+                flex: 1;          /* 确保中间内容区自动撑开 */
+                overflow-y: auto; /* 允许内容过多时滚动 */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="screen-start" class="screen start-screen active"> <h1 class="main-title">花滑模拟器</h1>
+        <div class="sub-title">Figure Skating Simulator</div>
+        <div class="credits">By Flames and Gemini</div>
+        <div class="intro-text">
+            你将扮演一名花滑运动员，<br>
+            从青涩少年起步，在汗水与伤痛中磨砺技艺。<br>
+            规划训练、管理伤病、角逐赛场，<br>
+            向着冬奥会的最高领奖台发起冲击。<br>
+            <br>
+            <strong>你的每一次起跳，都将书写属于你的冰上传奇。</strong>
+        </div>
+        <button class="start-btn" onclick="Game.startToPrologue()">踏上冰场</button> 
+    </div>
+
+    <div id="screen-prologue" class="screen">
+        <h2>出身选择</h2>
+        <div id="prologue-step-content"></div>
+    </div>
+
+    <div id="screen-chapter1" class="screen">
+        <h2>冰刃初痕</h2>
+        <div id="story-text" style="line-height: 1.6; margin-bottom: 20px;"></div>
+        <div id="story-options"></div>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+        <div class="top-bar">
+            <div>
+                <div id="ui-year">青年组 第1年</div>
+                <div id="ui-target">距升组还有 4 年</div>
+            </div>
+            <div style="text-align: right;">
+                <div id="ui-medals">🥇0 🥈0 🥉0</div>
+                <div id="ui-res">💰 0</div>
+            </div>
+        </div>
+
+        <div id="ui-stats"></div>
+
+        <div class="control-panel">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <strong>训练项目</strong>
+                <span id="ui-actions-left">剩余次数: 4</span>
+            </div>
+            <div class="training-grid" id="training-buttons"></div>
+            
+            <div style="margin-top:10px;">
+                <strong>强度模式 (HP消耗)</strong>
+                <div class="mode-select" id="intensity-selector"></div>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button id="btn-do-train" class="btn" onclick="Game.handleTraining()">开始训练</button>
+                <button class="btn" style="background:#e17055" onclick="UI.openShop()">补给商店</button>
+                <button id="btn-phase" class="btn" style="background:#6c5ce7" onclick="Game.advancePhase()">开始赛季</button>
+            </div>
+       </div>
+
+        <div class="log-box" id="activity-log"></div>
+    </div>
+    
+    <div id="modal-shop" class="shop-modal-content">
+        <h2>补给商店 <button onclick="UI.closeShopModal()" style="float:right; background:transparent; border:none; color:white; font-size: 18px;">×</button></h2>
+        <p>当前资金: <span id="shop-money">0</span></p>
+        <div id="shop-list"></div>
+    </div>
+
+    <div id="modal-alert" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-title" class="modal-title">提示</div>
+            <div id="modal-content" class="modal-content">内容</div>
+            <button id="modal-btn" class="modal-btn">确定</button>
+        </div>
+    </div>
+
+    <div id="modal-event" class="shop-modal-content" style="background: rgba(0,0,0,0.95);">
+        <h2 id="event-title">随机事件</h2>
+        <p id="event-desc" style="margin: 20px 0; line-height: 1.5; font-size: 14px;"></p>
+        <div id="event-options"></div>
+    </div>
+
+    <div id="screen-ending" class="screen" style="text-align: center;">
+        <h1 id="end-title" style="font-size: 26px; margin-top: 40px;"></h1>
+        <div id="end-badges" style="margin: 20px 0; color: #ff7675;"></div>
+        <p id="end-desc" style="text-align: left; background: #f5f5f5; padding: 20px; border-radius: 8px; color: #333;"></p>
+        <div id="end-stats-summary" style="margin-top:20px; font-weight:bold;"></div>
+        <button class="btn" onclick="Game.restartGame()" style="margin-top: 30px;">重新开始职业生涯</button>
+    </div>
+</div>
+
+<script>
+/**
+ * ============================================================
+ * 1. 配置数据 (CONFIG)
+ * ============================================================
+ */
+const CONFIG = {
+    prologue: [
+        {
+            title: "出生地",
+            desc: "一切的开始，在于你睁开眼时看到的城市。",
+            options: [
+                { txt: "冰雪重镇", res: 2, bod: 3, ins: 1, pow: 0, tag: "这里的孩子还没学会走路，先学会了滑冰。" },
+                { txt: "核心都会", res: 6, bod: 0, ins: 0, pow: 0, tag: "最顶级的俱乐部，也是最昂贵的门票。" },
+                { txt: "南方绿洲", res: 4, bod: 0, ins: 0, pow: 2, tag: "在商场的喧嚣中，你独自寻找冰面的宁静。" }
+            ]
+        },
+        {
+            title: "家境背景",
+            desc: "父母是你最坚实的后盾，或是最沉重的期待。",
+            options: [
+                { txt: "冰二代", res: 4, ins: 4, art: 0, bod: 0, tag: "你传承着父母的技巧，也背负着家人的期望。", isGen2: true },
+                { txt: "书香门第", res: 2, ins: 0, art: 6, bod: 0, tag: "他们希望你拥有强健的体魄，同时也兼顾学业。" },
+                { txt: "寒门奇才", res: 1, ins: 0, art: 0, bod: 7, tag: "家里不宽裕，但他们给了你一副最强健的身体" }
+            ]
+        },
+        {
+            title: "天赋特质",
+            desc: "最后，审视你自己。",
+            options: [
+                { txt: "易碎弹簧", tag: "惊人的爆发，伴随着玻璃般的脆弱。",pow: 12, art: 2, bod: -2, ins: 4, traitId: 'glass' },
+                { txt: "钢铁坦克", tag: "平庸但坚韧，你永远是冰场上练得最久的那一个。",pow: 4, art: 2, bod: 8, ins: 2, traitId: 'tank' },
+                { txt: "艺术水母", tag: "身体柔软如绸，你是天生的表演者。",pow: 0, art: 12, bod: 2, ins: 2, traitId: 'jelly' },
+                { txt: "冷静大脑", tag: "极致的稳定，你在冰场上从未迷失过方向。",pow: 4, art: 4, bod: 2, ins: 6, traitId: 'brain' }
+            ]
+        }
+    ],
+    traitMultipliers: {
+        'glass': { pow: 1.2, art: 1.0, bod: 0.8, ins: 1.0 },
+        'tank': { pow: 1.0, art: 0.8, bod: 1.2, ins: 1.0 },
+        'jelly': { pow: 0.8, art: 1.2, bod: 1.0, ins: 1.0 },
+        'brain': { pow: 0.9, art: 1.0, bod: 1.0, ins: 1.2 }
+    },
+    trainings: [
+        { id: 'step', name: '滑行步法', gain: { ins: 3, bod: 1 }, desc: '灵感+3 体魄+1' },
+        { id: 'jump', name: '跳跃专项', gain: { pow: 3, art: 1 }, desc: '爆发+3 艺术+1' },
+        { id: 'dance', name: '舞蹈合乐', gain: { art: 3, ins: 1 }, desc: '艺术+3 灵感+1' },
+        { id: 'land', name: '陆地体能', gain: { bod: 3, pow: 1 }, desc: '体魄+3 爆发+1' },
+        { id: 'rest', name: '彻底休息', gain: { hp: 15 }, desc: 'HP +15' }
+    ],
+    shopItems: [
+        { id: 'honey', name: '秘制蜂蜜水', cost: 80, desc: 'HP+10 (每年限购3次)', oneTime: false, limit: 3 },
+        { id: 'shield', name: '高级护具', cost: 300, desc: '下次受伤概率减半', oneTime: false },
+        { id: 'massage', name: '深层筋膜枪', cost: 800, desc: 'HP+25（大容量回血）', oneTime: false },
+        { id: 'lucky_charm', name: '好运红绳',  cost: 5000, desc: '下场比赛随机波动下限提升，不会发挥失常', oneTime: false },
+        { id: 'ballet_class', name: '大师级芭蕾课', cost: 1000, desc: '艺术+3,（提升艺术表达)',  oneTime: false, limit: 1 },
+        { id: 'cat_cafe', name: '撸猫券', cost: 500, desc: '心态+10，没有什么是一只小猫咪不能治愈的。', oneTime: false },
+        // 成年组/特殊限制
+        { id: 'skates', name: '顶级进口冰鞋', cost: 4000, desc: '永久: 灵感加成+10%', oneTime: true, minGroup: 'adult' },
+        { id: 'medical', name: '运动医学诊疗', cost: 1500, desc: '清除一次HP上限衰减', oneTime: false, minGroup: 'adult' },
+        { id: 'diet', name: '私人营养师', cost: 2000, desc: '永久: 每年回血+10', oneTime: true, minGroup: 'adult' },
+        { id: 'camp', name: '自费外训', cost: 3000, desc: '当年训练效果+20% (每年限购1次)', oneTime: false, minGroup: 'adult', limit: 1 },
+        { id: 'psychology', name: '心理辅导师', cost: 800, desc: '灵感+1', oneTime: false, minGroup: 'youth', limit: 1 },
+        { id: 'costume', name: '高定考斯滕', cost: 3000, desc: '艺术+3', oneTime: false, minGroup: 'adult', limit: 1 },
+        { id: 'master_class', name: '传奇大师课', cost: 6000, desc: '全属性立即提升 2 点', oneTime: false, minGroup: 'adult' , limit: 1},
+        { id: 'movie_ticket', name: '电影票', cost: 300, desc: '心态+5，灵感+1，一场好电影让你灵感迸发。', oneTime: false },
+       { id: 'short_trip', name: '短期旅行', cost: 3000, desc: '心态+20，HP+5，一次说走就走的旅行。（每年限购1次）', oneTime: false, limit: 1 },
+            ],
+    matchConfig: {
+        'youth': {
+            'qualify': { base: 120, range: 20 },
+            'jgp': { base: 120, range: 30 },
+            'final': { base: 140, range: 20 },
+            'nationals': { base: 120, range: 20 },
+            'worlds': { base: 130, range: 30 },
+            'olympics_youth': { base: 130, range: 30 }
+        },
+        'adult': {
+            'qualify': { base: 150, range: 40 },
+            'gp': { base: 180, range: 80 },
+            'final': { base: 240, range: 40 },
+            'nationals': { base: 160, range: 30 },
+            '4cc': { base: 180, range: 90 },
+            'asiangames': { base: 200, range: 70 },
+            'worlds': { base: 175, range: 100 },
+            'olympics': { base: 240, range: 40 }
+        }
+    },
+    countries: ["中国", "美国", "日本", "加拿大", "法国", "意大利", "波兰", "泰国", "阿塞拜疆"],
+  // =================================================================
+    // 【新增】基础环境器数据库
+    // =================================================================
+    // 每一个"环境"都是一个对象，包含了它的所有信息
+    // 这里的概率是相对概率，程序会根据这些概率在触发后进行抽奖
+    matchModifiers: [
+        {
+            id: 'hard_ice',
+            name: '冰面偏硬',
+            probability: 0.13, // 触发概率 13%
+            desc: "赛场冰面偏硬，这对选手的身体冲击和体能消耗是巨大的考验，但体魄强健的选手能更好地稳住动作。",
+            // 效果对象，包含了所有数值上的变化
+            effect: {
+                sp_bod: 0.1, fs_bod: 0.1,   // SP和FS的体魄权重+0.1
+                sp_art: -0.1, fs_art: -0.1, // SP和FS的艺术权重-0.1
+                extraHpCost: 5             // 额外HP消耗
+            }
+        },
+        {
+            id: 'soft_ice',
+            name: '冰面偏软',
+            probability: 0.12, // 12%
+            desc: "冰面轻微融化，滑行阻力大，起跳风险高，但落冰缓冲效果更好。",
+            effect: {
+                sp_pow: 0.1, fs_pow: 0.1,
+                sp_art: -0.1, fs_art: -0.1,
+                extraHpCost: 5
+            }
+        },
+        {
+            id: 'high_altitude',
+            name: '高原赛场',
+            probability: 0.10, // 10%
+            desc: "比赛在高原城市举行，稀薄的空气让每一次呼吸都变得沉重，体力面临严峻挑战。",
+            effect: {
+                // 这是一个特殊效果，我们会用 id 在代码里专门处理
+                isSpecial: 'altitude_hp_effect'
+            }
+        },
+        {
+            id: 'misty_ice',
+            name: '仙气缭绕',
+            probability: 0.05, // 5%
+            desc: "雾气弥漫在整个冰面上，每一个技术动作都必须小心翼翼。",
+            effect: {
+                sp_ins: 0.15, fs_ins: 0.15,
+                sp_pow: -0.05, fs_pow: -0.05,
+                sp_art: -0.05, fs_art: -0.05,
+                sp_bod: -0.05, fs_bod: -0.05
+            }
+        },
+        {
+            id: 'fanatical_crowd',
+            name: '狂热观众',
+            probability: 0.15, // 15%
+            desc: "现场观众的加油声排山倒海，将极大鼓舞富有表现力的选手。",
+            effect: {
+                sp_art: 0.1, fs_art: 0.1,
+                sp_ins: -0.1, fs_ins: -0.1
+            }
+        },
+        {
+            id: 'cold_crowd',
+            name: '冷淡观众',
+            probability: 0.15, // 15%
+            desc: "观众似乎对本场比赛的另一位选手更感兴趣，现场氛围有些冷淡。",
+            effect: {
+                sp_ins: 0.1, fs_ins: 0.1,
+                sp_art: -0.1, fs_art: -0.1
+            },
+            // 【特殊】为反转机制预留的数据
+            reversal: {
+                condition: (state) => state.fame > 4000 && state.art > 60 && Math.random() < 0.3,
+                desc: "……但你用完美的表现赢回了观众的心！",
+                effect: {
+                    sp_ins: -0.12, fs_ins: -0.12, // 注意，这里是覆盖原效果
+                    sp_art: 0.12, fs_art: 0.12,
+                    score_bonus: 5 // 额外的分数加成
+                }
+            }
+        },
+        {
+            id: 'strict_tech',
+            name: '技术严苛',
+            probability: 0.10, // 10%
+            desc: "本场比赛的技术裁判以严格著称，任何微小的瑕疵都可能被抓住并扣分。",
+            effect: {
+                sp_pow: 0.09, fs_pow: 0.09,
+                sp_ins: 0.09, fs_ins: 0.09,
+                sp_art: -0.18, fs_art: -0.18
+            }
+        },
+        {
+            id: 'artistic_preference',
+            name: '艺术偏好',
+            probability: 0.10, // 10%
+            desc: "据闻，本场比赛的裁判组更欣赏富有感染力的艺术表现。",
+            effect: {
+                sp_art: 0.18, fs_art: 0.18,
+                sp_pow: -0.09, fs_pow: -0.09,
+                sp_ins: -0.09, fs_ins: -0.09
+            }
+        },
+        {
+            id: 'p_follows_t',
+            name: 'P随T走',
+            probability: 0.10, // 10%
+            desc: "本场比赛的裁判似乎认为高难度的技术也应配上高水准的表演，反之亦然。",
+            effect: {
+                // 只影响FS
+                fs_pow: 0.09,
+                fs_bod: 0.09,
+                fs_art: -0.18
+            }
+        }
+    ]
+};
+
+  /* ============================================================
+ * 1.5. 新增：联系人事件数据库 (CONTACT_EVENTS)
+ * ============================================================ */
+const CONTACT_EVENTS = {
+    family: {
+        id: 'family',
+        name: '相亲相爱一家人',
+        probability: 0.5,
+        events: [
+            {
+                name: "【视频通话】",text: "群聊“相亲相爱一家人”发来消息，家人邀请你视频通话。",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 3,
+                effect: (s) => {
+                    if (s.psyche > 50) Game.updatePsyche(-5);
+                    else Game.updatePsyche(5);
+                },
+                return: "和家人畅聊一小时，你感到幸福且充实。（HP-3，心态恢复5）"
+            },
+            {
+                name: "【看看猫猫】",text: "去冰场的路上看到一只小猫，你开始想念自己的宠物。需要让妈妈为你拍一张小猫照片吗？",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 3,
+                effect: (s) => {
+                     if (s.psyche > 50) Game.updatePsyche(-5);
+                     else Game.updatePsyche(5);
+                },
+                return: "妈妈只抓拍到小猫专心致志消灭猫粮的身影，你感觉它又胖了。（HP-3，心态恢复5）"
+            },
+            {
+                name: "【倾诉烦恼】",text: "最近心情似乎不太美妙，你迫切地想找人倾诉一二。",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 5,
+                effect: (s) => {
+                     if (s.psyche > 50) Game.updatePsyche(-5);
+                     else Game.updatePsyche(5);
+                },
+                return: "家人倾听了你的烦恼，他们的温柔让你平静下来。（HP-3，心态恢复5）"
+            },
+            {
+                name: "【分享趣事】",text: "休赛期的生活规律但不缺乐趣，或许可以与家人分享这份快乐……",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 3,
+                effect: (s) => {
+                     if (s.psyche > 50) Game.updatePsyche(-5);
+                     else Game.updatePsyche(5);
+                },
+                return: "休赛期的生活丰富多彩，他们听得津津有味。（HP-3，心态恢复5）"
+            },
+            {
+                name: "【比赛风景】",text: "每到一个新的城市比赛，你都会拍下风景发给家人……",
+                trigger: (s) => s.phase === 'season',
+                cost: 3,
+                effect: (s) => {
+                     if (s.psyche > 50) Game.updatePsyche(-5);
+                     else Game.updatePsyche(5);
+                },
+                return: "当运动员的好处就是能看到世界各地的风景，现在你的家人们也能够和你一起欣赏了。（HP-3，心态恢复5）"
+            }
+        ]
+    },
+    teammate: {
+        id: 'teammate',
+        name: '队友',
+        probability: 0.2,
+        events: [
+            {
+                name: "【相约训练】",text: "队友发来消息：假期别偷懒，明天冰场见？",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 20,
+                effect: (s) => {
+                    Game.updatePsyche(-5);
+                    s.bod += 3;
+                    s.pow += 2;
+                },
+                return: "看着队友努力训练的身影，训练更努力了。（爆发+2，体魄+3，HP-20）"
+            },
+            {
+                name: "【赛前聊天】",text: "赛前热身，你看着队友，突然想和她说些什么……",
+                trigger: (s) => s.group === 'adult' && s.phase === 'season',
+                cost: 3,
+                options: [
+                    {
+                        label: "互放狠话",
+                        effect: (s) => {
+                            if (Math.random() < 0.5) {
+                                Game.updatePsyche(10);
+                                return "队友的话语激起了你的斗志，你坚信自己一定能够完美发挥。（心态+10）";
+                            } else {
+                                Game.updatePsyche(-10);
+                                return "队友的话让你更生焦虑，你不禁担忧自己的发挥。（心态-10）";
+                            }
+                        }
+                    },
+                    {
+                        label: "互相鼓劲",
+                        effect: (s) => {
+                            s.ins += 1;
+                            if (s.psyche > 50) Game.updatePsyche(-5);
+                            else Game.updatePsyche(5);
+                            return "自由滑结束后你望向观众席，看见队友挥舞着国旗为你呐喊。（心态恢复5，灵感+1）";
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    coach: {
+        id: 'coach',
+        name: '教练',
+        probability: 0.5,
+        events: [
+            {
+                name: "【请求加练】",text: "你主动发消息给教练：我想针对弱项进行特训。",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 0,
+                effect: (s) => {
+                    if (Math.random() < 0.7) {
+                        s.bod += 1;
+                        s.pow += 1;
+                        s.hp -= 15;
+                        return "教练针对你的薄弱之处为你安排了额外训练，但也提醒你注意身体健康。（HP-15，体魄+1，爆发+1）";
+                    } else {
+                        s.hp += 5;
+                        return "“你需要休息。”教练拒绝了你的提议。（HP+5）";
+                    }
+                }
+            },
+            {
+                name: "【训练计划】",text: "教练把你叫到办公室，商讨你的专属训练方案。",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 0,
+                effect: (s) => {
+                    s.hp -= 10;
+                    s.ins += 1;
+                },
+                return: "和教练商议了未来的训练重点，思路更清晰了。（HP-5，灵感+1）"
+            }
+        ]
+    },
+    doctor: {
+        id: 'doctor',
+        name: '队医',
+        probability: 0.4,
+        events: [
+            {
+                name: "【伤病管理】", text: "休赛期难得空闲，你预约了队医进行全面体检与理疗。",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 0,
+                effect: (s) => {
+                    s.injuryImmunity = true;s.money -= 200;s.hp += 5; // 设定年度训练受伤免疫
+                },
+                return: "经过队医的专业评估和指导，你对自己的身体状况了如指掌。（本年度训练受伤概率降低）"
+            }
+        ]
+    },
+    psychologist: {
+        id: 'psychologist',
+        name: '心理咨询师', 
+        probability: 0.2,
+        events: [
+            {
+                name: "【心理疏导】",text: "心理医生发来消息：最近感觉如何？要不要来聊聊？",
+                trigger: (s) => s.phase === 'offseason',
+                cost: 8,
+                effect: (s) => {
+                    if (s.psyche > 50) Game.updatePsyche(-10);
+                    else Game.updatePsyche(10);
+                },
+                return: "和咨询师交流一番，你心中的重担减轻了不少。（心态恢复10）"
+            }
+        ]
+    }
+};
+  
+/* ============================================================
+   2. 游戏状态 (State)
+   ============================================================ */
+const InitialState = {
+    step: 0, origin: '', isGen2: false, trait: '', 
+    pow: 10, art: 10, bod: 10, ins: 10,psyche: 50, hp: 100,
+    resPoints: 0, money: 0, fame: 0, 
+    chapter: 0, year: 1, group: 'youth', phase: 'offseason', actionsLeft: 4,
+    medals: { dG:0, dS:0, dB:0, iG:0, iS:0, iB:0 },
+    hpCapMalus: 0, 
+    modifiers: { shield: false, skates: false, diet: false, camp: false },
+    shopLimits: { honey: 0, camp: 0 },
+    selectedTrainingId: null, selectedIntensity: 'normal', 
+    hasOlympicGold: false, heavyInjuryCount: 0, luckyFish: false, ended: false,
+    currentSeasonMatches: [], 
+    seasonQualified: false,
+    gpRankings: [],
+    tempMatchScoreBonus: 0,
+    // --- 新增状态 ---
+    activeContactEvents: [], // 存储本年度被触发的联系人事件
+    triggeredEventCount: 0,  // 记录本年度已触发的“随机事件池”事件数量
+    injuryImmunity: false,   // 记录本年度是否免疫训练受伤
+  // --- 新增：赛季统计 ---
+    trainsThisSeason: 0,
+    restsThisSeason: 0,
+    injuriesThisSeason: 0,
+    qualifiedForGPFinalThisSeason: false,
+    medalsThisSeason: { G: 0, S: 0, B: 0 },
+  lastMatchResult: { name: '', rank: 0 }, // 记录上一场比赛的结果
+    hasBadgeSoftHeart: false,               // 记录是否获得“心软の神”成就
+  consoledRival: false, // 记录玩家是否安慰过失利的对手
+  // --- 新增：全局生涯统计 ---
+    totalRestsAllTime: 0,
+  triggeredGlobalEvents: [],// 用于记录整个游戏生涯中只触发一次的事件ID
+};
+
+let State = JSON.parse(JSON.stringify(InitialState));
+
+/* ============================================================
+   3. 随机事件管理器 (集成所有新事件)
+   ============================================================ */
+const EventManager = {
+    event
+  : [],
+    init: function() {
+        this.eventPool = [];
+        
+        // 1. 粉丝见面会
+        this.addNewEvent({
+            id: "fan_meet",
+            trigger: function(s) { return s.fame > 500 && Math.random() < 0.15 && s.phase === 'offseason'; },
+            probability: 1.0,
+            text: "粉丝希望能举办见面会，但这会消耗一些资金。",
+            options: [
+                { label: "答应", effect: (s)=>{ s.fame+=50; s.money-=1000; s.hp -= 15; return "粉丝们非常开心！ (名气+50, 资-1000, HP-15)"; } },
+                { label: "拒绝 ", effect: (s)=>{ s.ins += 1; return "你选择专注于训练(灵感+1)。"; } }
+            ]
+        });
+
+      this.addNewEvent({
+    id: "competitor_meltdown",
+        globalOneTime: true,
+    // 触发器：赛季中、名气够高、且上一场是指定大赛的冠军
+    trigger: function(s) {
+        if (s.phase !== 'season' || s.fame <= 4000) return false;
+       // 检查上一场比赛是否是大赛冠军
+        const majorWins = ["世锦赛", "亚冬会", "GP总决赛", "冬奥会"];
+        const wasMajorChampion = majorWins.some(m => s.lastMatchResult.name.includes(m)) && s.lastMatchResult.rank === 1;
+       // 0.25的触发概率，避免每次都出现
+        return wasMajorChampion && Math.random() < 0.2;
+    },
+    probability: 1.0, // 通过trigger控制概率，这里设为1.0
+    text: "一位赛前备受瞩目的选手意外发挥失常，刚刚在同场竞技中获胜的你决定……",
+    options: [
+        { 
+            label: "默默离开", 
+            effect: (s) => { 
+                s.ins += 1;
+                return "你选择将空间留给她独自消化情绪。对竞技体育的残酷，你有了更深的理解。（灵感+1）"; 
+            } 
+        },
+        { 
+            label: "拥抱安慰", 
+            effect: (s) => { 
+                s.art += 1;s.fame += 1
+                s.hasBadgeSoftHeart = true; // 获得新成就
+              s.consoledRival = true; // <-- 升起旗帜！记录下这个善举
+              return "你走上前，给了她一个无声的拥抱。她抬起头，也对你送上了真诚的祝贺。你的善意，或许会在未来得到回应。（艺术+1，名声+100）"; 
+            }  }
+    ]
+});
+      
+      this.addNewEvent({
+    id: "rival_returns_favor",
+    globalOneTime: true, // 这个回报事件本身也只发生一次
+    
+    // 触发器：
+    // 1. 必须安慰过对手 (旗帜升起)
+    // 2. 必须在赛季中
+    // 3. 随机概率，避免立即触发
+    trigger: function(s) {
+        if (!s.consoledRival || s.phase !== 'season') {
+            return false;
+        }
+        // 40%的触发概率，让它的出现带有一点惊喜
+        return Math.random() < 0.4;
+    },
+    probability: 1.0, // 由trigger控制概率
+
+    text: "在又一场大赛的赛前训练中，你再次见到了那位曾被你安慰过的选手。她看起来状态不错，主动走过来向你打招呼，“谢谢你上次的安慰。”",
+    
+    options: [
+        { 
+            label: "举手之劳", 
+            effect: (s) => {
+                // 1. 给予奖励：为下一场比赛增加临时分数
+                if (!s.tempMatchScoreBonus) s.tempMatchScoreBonus = 0;
+                s.tempMatchScoreBonus += 3;
+                
+                // 2. 放下旗帜：将旗帜重置为false，表示这个事件链已经完成
+                s.consoledRival = false; 
+           return "你们再次拥抱。在这片冰场，你们是对手，更是朋友。体育精神在这一刻无比闪耀。（下场比赛总分+3）";
+            } 
+        }
+    ]
+});
+      
+        // 2. 赛前状态
+        this.addNewEvent({
+            id: "pre_match_boost",
+            trigger: function(s) { return s.phase === 'season' && Math.random() < 0.2; },
+            probability: 1.0,
+            text: "赛前热身时，你感觉冰刀和冰面完美契合，状态奇佳！",
+            options: [
+                { 
+                    label: "保持专注", 
+                    effect: (s) => { 
+                        if (!s.tempMatchScoreBonus) s.tempMatchScoreBonus = 0;
+                        s.tempMatchScoreBonus = 5; 
+                        return "你感觉充满了力量，这一场稳了！ (本场比赛分数+5)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 3. 深夜加练
+        this.addNewEvent({
+            id: "midnight_train",
+            trigger: function(s) { return s.hp > 50 && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "深夜的冰场空无一人，你突然想留下来多练一会。",
+            options: [
+                { label: "挑战极限", effect: (s) => { s.pow += 2; s.hp -= 10; return "虽然很累，但你的跳跃精进了！(爆发+2, HP-10)"; } },
+                { label: "适可而止", effect: (s) => { s.ins += 1; return "你静静观察着冰面，对滑行有了新感悟。 (灵感+1)"; } }
+            ]
+        });
+
+        // 4. 编舞灵感
+        this.addNewEvent({
+            id: "ballet_watch",
+            trigger: function(s) { return s.phase === 'offseason' && s.art > 30; },
+            probability: 0.2,
+            text: "你在休息日看了一场顶级的芭蕾舞表演，对肢体延伸有了新的领悟。",
+            options: [
+                { label: "模仿学习", effect: (s)=>{ s.art += 2; s.hp -= 10; return "你的表现力更进了一步！(艺术+2, HP-10)"; } },
+                { label: "单纯欣赏", effect: (s)=>{ s.ins += 1; return "心情愉悦，灵感涌现。 (灵感+1)"; } }
+            ]
+        });
+
+        // 5. 冰刀故障
+        this.addNewEvent({
+            id: "skate_issue",
+            trigger: function(s) { return s.phase === 'season' && Math.random() < 0.08; },
+            probability: 1.0,
+            text: "糟糕！在赛前检查时，你发现冰刀的刃口有一处微小的崩裂，这可能会影响你的稳定性。",
+            options: [
+                { label: "勉强比赛", effect: (s) => { if(!s.tempMatchScoreBonus)s.tempMatchScoreBonus=0; s.tempMatchScoreBonus -= 8; return "你心里有些不安，滑行时变得小心翼翼。 (下场比赛分数-8)"; } },
+                { label: "紧急磨刀", effect: (s) => { s.money -= 200; if(!s.tempMatchScoreBonus)s.tempMatchScoreBonus=0; s.tempMatchScoreBonus -= 2; return "花钱找技师处理了，但手感还是受了点影响。 (资金-200, 下场比赛分数-2)"; } }
+            ]
+        });
+
+        // 6. 家乡应援
+        this.addNewEvent({
+            id: "hometown_support",
+            trigger: function(s) { return s.phase === 'season' && s.fame > 200 && Math.random() < 0.12; },
+            probability: 1.0,
+            text: "看台上响起了巨大的欢呼声，你看到了家乡冰迷们举着的应援横幅。",
+            options: [
+                { label: "全力以赴", effect: (s) => { if(!s.tempMatchScoreBonus)s.tempMatchScoreBonus=0; s.tempMatchScoreBonus += 6; return "你感到热血沸腾，状态直接拉满！ (下场总分+6)"; } }
+            ]
+        });
+
+        // 7. 选曲buff
+        this.addNewEvent({
+            id: "music_bonus",
+            trigger: function(s) { return s.phase === 'season' && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "裁判席上似乎有几位评委非常喜欢你这赛季的选曲，他们正随着音乐点头。",
+            options: [
+                { label: "沉浸表演", effect: (s) => { if(!s.tempMatchScoreBonus)s.tempMatchScoreBonus=0; s.tempMatchScoreBonus += 5; return "艺术表现分（PCS）获得加成！ (下场总分+5)"; } }
+            ]
+        });
+
+        // 8. 身体预警
+        this.addNewEvent({
+            id: "injury_warning",
+            trigger: function(s) { return s.hp < 50 && !s.modifiers.shield; },
+            probability: 0.2,
+            text: "早晨起床时，你感觉膝盖隐隐作痛，教练建议你调整计划。",
+            options: [
+                { 
+                    label: "坚持高强度", effect: (s)=>{ 
+                    if(Math.random() < 0.3) { Game.handleInjury('light'); return "哎哟！还是拉伤了。"; }
+                    s.pow += 1; return "你挺过去了，力量有所增长！(爆发+1)"; 
+                } },
+                { label: "理疗放松", effect: (s)=>{ s.money -= 200; s.hp += 10; 
+                    return "身体是革命的本钱。 (资金-200, HP+10)"; } }
+            ]
+        });
+
+        // 9. 品牌代言
+        this.addNewEvent({
+            id: "brand_deal",
+            trigger: function(s) { return s.fame > 1000; },
+            probability: 0.15,
+            text: "一家运动品牌看中了你的潜力，邀请你拍摄一支简短的商业广告。",
+            options: [
+                { label: "接受代言", 
+                    effect: (s)=>{ s.money += 400; s.fame += 50; s.hp += 10; return "你在电视上露脸了，钱包也鼓了！ (资金+400, 名气+50，HP-10)"; } },
+                { label: "专注训练", effect: (s)=>{ s.pow += 2; return "你拒绝了喧嚣，在冰场挥汗如雨。 (爆发+2)"; } }
+            ]
+        });
+
+        // 10. 冰上奇缘
+        this.addNewEvent({
+            id: "ice_inspiration",
+            trigger: function(s) { return s.ins < 20; },
+            probability: 0.2,
+            text: "你在室外冰场滑冰时，看到一只掠过冰面的飞鸟，似乎抓到了某种节奏。",
+            options: [
+                { label: "尝试编舞", 
+                    effect: (s)=>{ s.ins += 2; return "一段新的步法在脑海中成型。 (灵感+2)"; } },
+                { label: "默默记下", effect: (s)=>{ s.ins += 1; return "有些东西改变了。 (灵感+1)"; } }
+            ]
+        });
+
+        // 【新增 1】版权危机
+        this.addNewEvent({
+            id: "copyright_issue",
+            trigger: function(s) { return s.group === 'adult' && s.phase === 'season' && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "赛前你突然收到消息，你的节目配乐因版权问题无法使用！",
+          globalOneTime: true,
+            options: [
+                { 
+                    label: "换回上赛季节目", 
+                    effect: (s) => { 
+                        if (!s.tempMatchScoreBonus) s.tempMatchScoreBonus = 0;
+                        s.tempMatchScoreBonus -= 5;
+                        return "一张安全牌。但裁判和观众已经厌倦。(PCS-5)"; 
+                    } 
+                },
+                { 
+                    label: "立刻编排新节目", 
+                    effect: (s) => { 
+                        s.money -= 500;
+                        s.hp -= 10;
+                        if (!s.tempMatchScoreBonus) s.tempMatchScoreBonus = 0;
+                        s.tempMatchScoreBonus += 5;
+                        return "虽然匆匆忙忙，但你向观众展示了一套新奇的节目。(资金-500, HP-10, 下次得分+5)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 【新增 2】冰鞋被偷
+        this.addNewEvent({
+            id: "skate_stolen",
+            trigger: function(s) { return s.group === 'adult' && s.modifiers.camp && s.phase === 'season' && Math.random() < 0.05; },
+            probability: 1.0,
+            text: "你的冰鞋被偷了！离比赛只剩几个小时！",
+          globalOneTime: true,
+            options: [
+                { 
+                    label: "寻找新冰鞋参赛", 
+                    effect: (s) => { 
+                        s.money -= 1000;
+                        s.hp -= 10;
+                        s.bod += 3;
+                        return "新鞋参赛让你痛苦不堪，但你坚持下来了。(资金-1000, HP-10, 体魄+3)"; 
+                    } 
+                },
+                { 
+                    label: "临时退赛", 
+                    effect: (s) => { 
+                        s.money -= 500;
+                        s.ins += 1;
+                        if (!s.tempMatchScoreBonus) s.tempMatchScoreBonus = 0;
+                        s.tempMatchScoreBonus -= 1000; // 极大的负分模拟得分为0
+                        return "没有冰鞋如何比赛？你只能打道回府。(资金-500, 灵感+1, 下次比赛得分视为0)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 【新增 3】偶遇偶像
+        this.addNewEvent({
+            id: "meet_idol",
+            trigger: function(s) { return s.phase === 'season' && Math.random() < 0.15; },
+            probability: 1.0,
+            text: "赛前公开训练，你在冰场遇见了自己最喜欢的运动员！",
+            options: [
+                { 
+                    label: "默默欣赏", 
+                    effect: (s) => { 
+                        s.hp += 5;
+                        s.art += 1;
+                        return "你有所感悟，心情也变好了。(HP+5, 艺术+1)"; 
+                    } 
+                },
+                { 
+                    label: "要一张合影", 
+                    effect: (s) => { 
+                        s.hp += 10;
+                        return "要到了合影，心情大好！(HP+10)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 【新增 4】冰演邀请
+        this.addNewEvent({
+            id: "ice_show",
+            trigger: function(s) { return s.art > 50 && s.phase === 'offseason' && Math.random() < 0.2; },
+            probability: 1.0,
+            text: "一家知名冰演主办方邀请你参加他们的演出。",
+            options: [
+                { 
+                    label: "欣然接受", 
+                    effect: (s) => { 
+                        s.hp -= 15;
+                        s.art += 2;
+                        s.fame += 50;
+                        s.money += 1000;
+                        return "更多人认识了你！(HP-15, 艺术+2, 名气+50, 资金+1000)"; 
+                    } 
+                },
+                { 
+                    label: "友善拒绝", 
+                    effect: (s) => { 
+                        s.ins += 1;
+                        return "你还是想专心训练。(灵感+1)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 【新增 5】网络喷子
+        this.addNewEvent({
+            id: "internet_troll",
+            trigger: function(s) { return s.fame > 200 && Math.random() < 0.15; },
+            probability: 1.0,
+            text: "在某音符软件上分享日常生活，收到一条怒喷你不努力训练的私信。",
+            options: [
+                { 
+                    label: "喷回去", 
+                    effect: (s) => { 
+                        s.hp += 5;
+                        return "你心情大好，但对方更愤怒了。(HP+5)"; 
+                    } 
+                },
+                { 
+                    label: "躺平任喷", 
+                    effect: (s) => { 
+                        s.hp -= 5;
+                        s.bod += 1;
+                        return "心情沮丧，但训练更努力了！(HP-5, 体魄+1)"; 
+                    } 
+                }
+            ]
+        });
+      
+      this.addNewEvent({
+            id: "music-choice",
+            trigger: function(s) { return s.phase === 'season' && s.art > 40 && Math.random() < 0.15; },
+            probability: 1.0,
+            text: "你需要选择自己下赛季的选曲。",
+            options: [
+                { label: "选择经典花滑曲目", effect: (s) => { s.art += 1; return "同场撞曲选手太多，被冰迷做成对比视频（艺术+1）"; } },
+                { label: "选择民族风曲目", effect: (s) => { s.ins += 1; s.fame += 500; return "裁判给予了和你的国籍相配的P分，但你的优秀冰迷都看在眼里。（名声+500，灵感+1）"; } }
+            ]
+        });
+
+this.addNewEvent({
+            id: "dong-feng",
+            trigger: function(s) { return s.phase === 'season' && s.fame > 5000 && Math.random() < 0.15; },
+            probability: 1.0,
+            text: "比赛结束，观众给你扔了一个东风造型的玩偶。",
+          globalOneTime: true,
+            options: [
+                { label: "捡起来带到KC区", effect: (s) => { s.pow += 2; s.hp -= 10; return "竟然拿着如此不当的玩偶！ISU启动了对你的调查！（名声+200，艺术+1）"; } },
+                { label: "冷静路过", effect: (s) => { s.ins += 1; return "在无知无觉中，你躲过了一场风暴（灵感+1）"; } }
+            ]
+        });
+
+      this.addNewEvent({
+            id: "pair",
+            trigger: function(s) { return s.group === 'adult' && s.phase === 'offseason' && s.pow < 40 && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "休赛季，教练忧愁于你的竞技水平，提出让你尝试转向双人滑。",globalOneTime: true,
+            options: [
+                { label: "忠诚于单人滑", effect: (s) => { s.ins += 1;  return "你清楚自己的长处，双人滑还是算了吧！（灵感+1）"; } },
+                { label: "要不真试试？", effect: (s) => {if(Math.random() < 0.3) { UI.triggerEnding('pairs'); }
+                    s.hp -= 20 ; return "耗费了大量精力！（HP-20）"; } }
+            ]
+        });
+      
+      this.addNewEvent({
+            id: "pair",
+            trigger: function(s) { return s.phase === 'offseason' && s.pow < 40 && s.art > 70 && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "教练忧愁于你的竞技水平，但娱乐公司向你抛来了橄榄枝。",globalOneTime: true,
+            options: [
+                { label: "我要滑冰", effect: (s) => { s.ins += 1;  return "比起跳舞，你还是更喜欢滑冰。（灵感+1）"; } },
+                { label: "转行也是一种出路", effect: (s) => {if(Math.random() < 0.3) { UI.triggerEnding('idol'); }
+                    s.hp -= 20 ; s.art += 1; return "你的表现力更闪耀了！（HP-20，艺术+1）"; } }
+            ]
+        });
+      
+      this.addNewEvent({
+            id: "pair",
+            trigger: function(s) { return s.group === 'adult' && s.phase === 'offseason' && s.money > 10000 && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "在你惊人的商业头脑和财富积累之下，冰场似乎已经无法束缚住你的野心。",globalOneTime: true,
+            options: [
+                { label: "我的野心就在这里", effect: (s) => { s.ins += 1;  return "你永远清楚知道自己想要什么（灵感+1）"; } },
+                { label: "让ISU见识一番我的实力！", effect: (s) => { UI.triggerEnding('boss'); } }
+            ]
+        });
+      
+this.addNewEvent({
+            id: "growing",
+            trigger: function(s) { return s.group === 'youth' && s.hp < 50 && !s.modifiers.shield; },
+            probability: 0.2,
+            text: "发育关不期而至，你的重心正在发生偏移。",
+            options: [
+                { 
+                    label: "加大训练量对抗发育", effect: (s)=>{ 
+                    if(Math.random() < 0.3) { s.bod += 2;s.hp -= 10; return "顶着发育训练很痛苦，但你挺过来了。（HP-10，体魄+2）"; }
+                    s.hp -= 20 ; return "训练强度太大，你受伤了！（HP-20）"; 
+                } },
+                { label: "休养生息", effect: (s)=>{ s.bod += 1; s.hp += 10; 
+                    return "有时候休息是更好的前进。 (体魄+1，HP+10)"; } }
+            ]
+        });
+      
+      this.addNewEvent({
+            id: "midnight_cry",
+            trigger: function(s) { return s.psyche < 30 && s.phase === 'offseason'; },
+            probability: 0.25, // 提高一点概率以便触发
+            text: "深夜，你看着天花板，突然觉得之前的努力毫无意义。",
+            options: [
+                { 
+                    label: "大哭一场", 
+                    effect: (s) => { 
+                        Game.updatePsyche(10); // 使用封装函数
+                        s.hp -= 5; 
+                        return "将情绪发泄出来虽然很累，你感觉好多了。(心态+10, HP-5)"; 
+                    } 
+                },
+                { 
+                    label: "咬牙硬扛", 
+                    effect: (s) => { 
+                        Game.updatePsyche(-5); 
+                        s.art += 1; 
+                        return "你又默默度过了一个难眠的夜晚。或许痛苦确实是艺术的源泉，教练夸赞你最近表演进步了。(心态-5, 艺术+1)"; 
+                    } 
+                }
+            ]
+        });
+
+        // 【新增 2】狂热采访 - 冠军预定
+        this.addNewEvent({
+            id: "interview_arrogant",
+            trigger: function(s) { return s.psyche > 70 && s.phase === 'season'; },
+            probability: 0.25,
+            text: "赛前记者采访，你脱口而出：“冠军已被我预定。”",
+            options: [
+                { 
+                    label: "赶紧找补", 
+                    effect: (s) => { 
+                        Game.updatePsyche(-5); 
+                        s.ins += 1; 
+                        return "你急忙向记者解释那是玩笑话。虽然有些尴尬，但至少避免了一场舆论风波。(心态-5, 灵感+1)"; 
+                    } 
+                },
+                { 
+                    label: "我就是这么想的", 
+                    effect: (s) => { 
+                        Game.updatePsyche(5); 
+                        s.fame += 100; 
+                        return "这段采访视频瞬间引爆了网络！有人骂你狂妄，有人夸你霸气。但无论如何，现在的你是全场的焦点，所有人都盯着你的下一场比赛。(心态+5, 名气+100)"; 
+                    } 
+                }
+            ]
+        });
+
+this.addNewEvent({
+            id: "lz-e",
+            trigger: function(s) { return s.group === 'adult' && s.pow > 50 && Math.random() < 0.1; },
+            probability: 1.0,
+            text: "你的错刃Lz太明显，已经上了裁判黑名单!",
+            options: [
+                { label: "努力改刃", effect: (s) => { s.ins += 2; s.pow -= 1; s.bod += 1; return "对于成年选手，改刃不是易事。（爆发-1，灵感+2，体魄+1）"; } },
+                { label: "维持现状", effect: (s) => { s.ins -= 2; s.pow += 1; return "勾手的分值让你不忍丢弃这个跳跃，但技裁已经盯上你了！（爆发+1，灵感-2）"; } }
+            ]
+        })
+    },
+    addNewEvent: function(eventObj) {
+        this.eventPool.push(eventObj);
+    },
+        checkEvents: function(context) {
+        // 新增：检查年度随机事件触发次数是否已达上限
+        if (State.triggeredEventCount >= 3) {
+            return false;
+        }
+
+        let candidates = this.eventPool.filter(e => {
+        // ▼▼▼ 核心修改：增加全局唯一性检查 ▼▼▼
+        // 如果事件是全局唯一的，并且它的ID已经存在于“全局清单”中...
+        if (e.globalOneTime && State.triggeredGlobalEvents.includes(e.id)) {
+            return false; // ...则直接排除，不参与后续触发判定。
+        }
+        // ▲▲▲ 修改结束 ▲▲▲
+
+        // 如果通过了全局检查，再执行它自身的触发条件
+        return e.trigger(State);
+    });
+
+    if (candidates.length > 0) {
+        const idx = Math.floor(Math.random() * candidates.length);
+        const evt = candidates[idx];
+        if (Math.random() <= evt.probability) {
+            // 3. 触发成功后，更新年度计数器
+            State.triggeredEventCount++;
+            
+            // ▼▼▼ 核心修改：如果触发的是全局唯一事件，将其ID计入“全局清单” ▼▼▼
+            if (evt.globalOneTime) {
+                State.triggeredGlobalEvents.push(evt.id);
+                UI.log(`(一个独特的事件发生了，这将成为你职业生涯中宝贵的回忆。)`);
+            }
+            // ▲▲▲ 修改结束 ▲▲▲
+
+            UI.showEventModal(evt);
+            UI.log(`(本年度已触发 ${State.triggeredEventCount} 个随机事件)`);
+            return true;
+            }
+        }
+        return false;
+    }
+};
+
+/* ============================================================
+   4. 游戏逻辑核心
+   ============================================================ */
+const Game = {
+  // 新增：从首页正式进入序幕的逻辑
+    startToPrologue: function() {
+        UI.switchScreen('screen-prologue'); // 切换到序幕页面
+        this.renderPrologue();              // 开始渲染序幕的选择项
+    },
+  
+  restartGame: function() {
+        State = JSON.parse(JSON.stringify(InitialState));
+        UI.switchScreen('screen-start');
+        UI.renderPrologue();
+    },
+
+    choosePrologue: function(optionIndex) {
+        const stepData = CONFIG.prologue[State.step];
+        const opt = stepData.options[optionIndex];
+        if(opt.res) State.resPoints += opt.res;
+        if(opt.pow) State.pow += opt.pow;
+        if(opt.art) State.art += opt.art;
+        if(opt.bod) State.bod += opt.bod;
+        if(opt.ins) State.ins += opt.ins;
+        if (State.step === 0) State.origin = opt.txt;
+        if (opt.isGen2) State.isGen2 = true;
+        if (opt.traitId) State.trait = opt.traitId;
+        State.step++;
+        if (State.step < CONFIG.prologue.length) {
+            UI.renderPrologue();
+        } else {
+            this.startChapter1();
+        }
+    },
+
+    startChapter1: function() {
+        UI.switchScreen('screen-chapter1');
+        this.renderNode(1);
+    },
+
+    renderNode: function(nodeId) {
+        let text = "";
+        let options = [];
+        if (nodeId === 1) {
+            text = State.origin === "冰雪重镇" ?
+            "寒风呼啸，你走上那片露天的野冰场。" : "冰场建在繁华的商场中心，你趴在护栏玻璃上，看着冰面上滑行的人影。";
+            text += State.isGen2 ? "<br>作为冰二代，踏上冰场对你来说是再自然不过的事。你看着眼前这片洁白的冰面，心里想的是：" : "<br>这是你第一次来到冰场，周围冷飕飕的，一切都很陌生。你看着眼前这片洁白的冰面，心里想的是：";
+            options = [
+                { txt: "在这里转圈肯定很好看", action: ()=>{State.art+=2;
+                this.renderNode(2);} },
+                { txt: "感觉会摔跤，但我得试试", action: ()=>{State.ins+=1;
+                State.bod+=1; this.renderNode(2);} },
+                { txt: "滑得好快，我也想冲得那么快！", action: ()=>{State.pow+=2;
+                this.renderNode(2);} }
+            ];
+        } else if (nodeId === 2) {
+            text = "你是个滑冰的好苗子。父母商量后为你报了花滑班，你开始接受规律的训练。<br>每次下课前的最后十分钟，是教练留给你们的“自由时间”。你喘着气，看着这片属于你的冰面，你最喜欢做的事情是：";
+            options = [
+                { txt: "学着电视里的样子，自己瞎编一点动作。", action: ()=>{State.art+=2;
+                UI.showModal(" ", "模仿电视里的运动员，你合着节拍滑行。虽然动作还很幼稚，但教练说你有一股难得的灵气。", ()=>this.renderNode(3));} },
+                { txt: "盯着冰面上的划痕，想把刚才教的动作练得更像样。", action: ()=>{State.ins+=1;State.bod+=1;
+                UI.showModal(" ", "你是个耐得住寂寞的孩子。当别人在玩闹时，你已经能滑出比他们更稳的线条了。", ()=>this.renderNode(3));} },
+                { txt: "和其他小朋友赛跑，看谁先冲到冰场那一头。", action: ()=>{State.pow+=2;
+                UI.showModal(" ", "你总是遥遥领先，速度带起的冷风让你觉得异常兴奋。", ()=>this.renderNode(3));} }
+            ];
+       }else if (nodeId === 3) {
+    text = "你已经上冰好几年了。新鲜感早已消失，取而代之的是每天几百次的压刃、起跳和摔倒。<br>在一个寒冷的早晨，妈妈蹲下帮你拉好护具，问你：“要是觉得太累了，咱们就不练了吧？”";
+    options = [
+        { 
+            txt: "我要滑下去", 
+            action: () => {
+                State.bod += 1;
+                this.renderNode(4);
+            } 
+        },
+        { 
+            txt: "我不想练了...", 
+            action: (btn) => { 
+                btn.style.display = 'none'; 
+            }
+        }
+    ];
+}else if (nodeId === 4) {
+            text = "教练把你单独叫到办公室，手里拿着你这一年的体能测试和滑行数据。<br>“你的爆发力很强，速度很快，但在动作的细腻程度上稍显不足。”教练看着你说，“如果你愿意，我可以推荐你去隔壁的短道速滑队。或者，继续留在这里。";
+            options = [
+                { txt: "我还是想留在这里。", action: ()=>{ this.startChapter2();
+                } },
+                { txt: "我想看看，我到底能滑多快。", action: ()=>{ UI.triggerEnding('wind');
+                } }
+            ];
+        }
+        UI.updateStory(text, options);
+    },
+
+    startChapter2: function() {
+        State.chapter = 2;
+        State.money = State.resPoints * 100;
+        EventManager.init(); 
+        UI.switchScreen('screen-dashboard');
+        UI.initDashboard();
+        UI.showModal("提示", "这是你进入青年组的第一年。");
+        UI.log("进入青年组，开启职业生涯。");
+    },
+
+      // (这是 Game 对象内部，例如放在 startChapter2 函数下面)
+
+    // =================================================================
+    // 【新增】联系人事件 - 年度抽取逻辑
+    // =================================================================
+    rollForContactEvents: function() {
+        State.activeContactEvents = [];
+        const triggeredContacts = [];
+
+        // 为了让“最多3个”的筛选更公平，先将所有联系人随机排序
+        const contactKeys = Object.keys(CONTACT_EVENTS);
+        for (let i = contactKeys.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [contactKeys[i], contactKeys[j]] = [contactKeys[j], contactKeys[i]];
+        }
+        
+        // 根据各自的概率进行“过检”
+        for (const key of contactKeys) {
+            const contact = CONTACT_EVENTS[key];
+            if (Math.random() < contact.probability) {
+                triggeredContacts.push(contact);
+            }
+        }
+
+        // 最多只取3个被触发的联系人
+        const finalContacts = triggeredContacts.slice(0, 3);
+
+        let logMsg = "新年新气象，";
+        if (finalContacts.length > 0) {
+            const names = [];
+            finalContacts.forEach(contact => {
+                const availableEvents = contact.events;
+                if (availableEvents.length > 0) {
+                    // 从该联系人的事件池中，随机抽取一个作为本年度的唯一事件
+                    const chosenEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+                    State.activeContactEvents.push({
+                        contactId: contact.id,
+                        event: chosenEvent
+                    });
+                    names.push(contact.name);
+                }
+            });
+            if (names.length > 0) {
+                 logMsg += `你收到了来自 [${names.join(']、[')}] 的新消息。`;
+                 UI.log(logMsg);
+            }
+        }
+    },
+      
+      // (在 Game 对象内部，例如 rollForContactEvents 函数的下方)
+
+    // =================================================================
+    // 【新增】联系人事件 - 自动检查与触发逻辑
+    // =================================================================
+        // =================================================================
+    // 【修改】联系人事件 - 自动检查与触发逻辑 (V2.0)
+    // =================================================================
+    checkContactEvents: function() {
+        // 查找第一个满足当前触发条件的联系人事件
+        const eventIndex = State.activeContactEvents.findIndex(e => e.event.trigger(State));
+
+        if (eventIndex === -1) {
+            return false; // 没有符合条件的联系人事件
+        }
+
+        const activeEvent = State.activeContactEvents[eventIndex];
+        const eventData = activeEvent.event;
+
+        // 1. HP 预检查 (只检查，不扣费)，HP不足则静默失败
+        if (eventData.cost && State.hp <= eventData.cost) {
+            UI.log(`(因为HP不足，错过了事件：${eventData.name})`);
+            return false;
+        }
+
+        // 2. 准备弹窗数据
+        const modalData = {
+            title: eventData.name, // 请求2：使用事件名作为标题
+            text: eventData.text || eventData.return, // 使用描述或返回文本
+            options: []
+        };
+
+        // 3. 这是一个高阶函数，用于包装“确认”操作
+        // 它负责：扣费、执行效果、从State中移除事件
+        const createConfirmWrapper = (originalEffect) => {
+            return (s) => {
+                // 在执行前再次检查HP，以防万一
+                if (eventData.cost && s.hp < eventData.cost) {
+                    return "行动失败，你的HP不足！";
+                }
+                // 扣费
+                if (eventData.cost) {
+                    s.hp -= eventData.cost;
+                }
+
+                // 执行原始效果
+                const feedback = originalEffect(s);
+
+                // 从State中移除事件
+                const indexToRemove = State.activeContactEvents.findIndex(e => e.event.name === eventData.name);
+                if (indexToRemove > -1) {
+                    State.activeContactEvents.splice(indexToRemove, 1);
+                }
+                return feedback;
+            };
+        };
+
+        // 4. 根据事件类型生成不同按钮
+        if (eventData.options) { 
+            // 情况A：事件本身有多个自定义选项 (如“赛前聊天”)
+            modalData.options = eventData.options.map(opt => ({
+                label: opt.label,
+                effect: createConfirmWrapper(opt.effect) // 每个选项都是一个“确认”操作
+            }));
+        } else { 
+            // 情况B：简单事件，为其生成“确定”和“算了”
+            
+            // “确定”按钮的效果
+            const onConfirmEffect = (s) => {
+                let feedback = eventData.return || "事件已完成。";
+                if (eventData.effect) {
+                    const effectReturn = eventData.effect(s);
+                    if (typeof effectReturn === 'string') feedback = effectReturn;
+                }
+                return feedback;
+            };
+            
+            // 添加“确定”按钮
+            modalData.options.push({
+                label: "确定",
+                effect: createConfirmWrapper(onConfirmEffect)
+            });
+
+            // 添加“算了，不必了”按钮
+            modalData.options.push({
+                label: "算了，不必了",
+                effect: () => {
+                   // ▼▼▼ 核心修改：从State中移除此事件，实现“年度内不再弹出” ▼▼▼
+        const indexToRemove = State.activeContactEvents.findIndex(e => e.event.name === eventData.name);
+        if (indexToRemove > -1) {
+            State.activeContactEvents.splice(indexToRemove, 1);
+        }
+        // ▲▲▲ 修改结束 ▲▲▲
+        return "你决定暂时不打扰对方。";
+                }
+            });
+        }
+
+        UI.showEventModal(modalData); // 显示事件弹窗
+        return true; // 报告：已成功触发一个事件
+    },
+
+    // =================================================================
+    // 【新增】主事件检查官
+    // =================================================================
+    masterEventCheck: function() {
+        // 优先检查联系人事件
+        const contactEventTriggered = this.checkContactEvents();
+        
+        // 如果联系人事件已经触发，则本次不再检查随机事件池，避免弹窗轰炸
+        if (contactEventTriggered) {
+            return;
+        }
+        
+        // 如果没有联系人事件，再检查随机事件池
+        EventManager.checkEvents();
+    },
+  
+ handleTraining: function() {
+        const typeId = State.selectedTrainingId;
+        
+        // 1. 如果没有选择训练项目，提示选择
+        if (!typeId) {
+            UI.showModal("提示", "请选择训练项目！");
+            return;
+        }
+
+        /*
+           【逻辑说明】：
+           必须把“休息 (rest)”的判断放在检查血量之前。
+           这样就算 HP=10，只要选的是rest，就能通过下面的 if，执行回血。
+        */
+
+        // 2. 如果选择了彻底休息，允许执行，无论血量多少
+        if (typeId === 'rest') {
+            if (State.actionsLeft <= 0) return;
+             State.restsThisSeason++; // 新增：赛季休息次数+1
+          State.totalRestsAllTime++; // 新增：全局休息次数+1
+           
+          // --- 执行休息逻辑 ---
+            State.hp += 15;
+            let maxHp = 100 - State.hpCapMalus;
+            if (State.hp > maxHp) State.hp = maxHp;
+            State.actionsLeft--;
+            
+            UI.log(`彻底休息 (恢复)，HP+15`);
+            UI.updateDashboard();
+            this.checkGameOver(); // 每次操作后检查状态
+            return; // 休息完直接结束函数，不往下走了
+        }
+
+        // 3. 如果选的不是休息，现在才开始检查是不是残血
+        /*
+           【修改前】：只是简单的 return，玩家不知道发生了什么。
+           【修改后】：增加一个弹窗提示，告诉玩家为什么点不了。
+        */
+        if (State.hp <= 29) {
+            UI.showModal("警告", "健康值过低，教练勒令你休息！(请选择“彻底休息”项目)");
+            return; // 拦截所有非休息的训练
+        }
+        if (State.actionsLeft <= 0) return;
+        const trainConf = CONFIG.trainings.find(t => t.id === typeId);
+        
+        let hpChange = 0;
+        let intensityMult = 1.0;
+        let intensityLog = "";
+        if (typeId === 'rest') {
+            hpChange = 15;
+            intensityLog = "休息";
+        } else {
+          State.trainsThisSeason++; // 新增：赛季训练次数+1 
+          if (State.selectedIntensity === 'recover') { intensityMult = 0.5;
+            hpChange = 5; intensityLog = "恢复"; }
+            else if (State.selectedIntensity === 'normal') { intensityMult = 1.0;
+            hpChange = -10; intensityLog = "常规"; }
+            else if (State.selectedIntensity === 'sprint') { intensityMult = 1.2;
+            hpChange = -15; intensityLog = "冲刺"; }
+            
+            const injury = this.checkInjury(State.hp);
+            if (injury !== 'none') {
+                 this.handleInjury(injury);
+                 if (injury === 'heavy' || injury === 'career') {
+                     State.actionsLeft--;
+                     UI.updateDashboard();
+                     return; 
+                 }
+            }
+        }
+
+        let ageDecay = 1.0;
+        if (State.group === 'adult') {
+            const adultYear = State.year - 4;
+            ageDecay = Math.max(0.6, 1.0 - (adultYear * 0.05));
+        }
+
+        let gainLog = [];
+        if (typeId !== 'rest') {
+            const getDiminishing = (val) => {
+                if (val < 60) return 1.0;
+                if (val < 85) return 0.75;
+                return 0.4;
+            };
+          // 【新增】心态对训练的修正
+        let psycheTrainMult = 1.0;
+        if (State.psyche < 10) psycheTrainMult = 0.8;       // 崩溃
+        else if (State.psyche < 30) psycheTrainMult = 0.9;  // 焦虑
+        else if (State.psyche < 70) psycheTrainMult = 1.0;  // 平和
+        else if (State.psyche < 90) psycheTrainMult = 1.1;  // 自信
+        else psycheTrainMult = 1.2;
+          
+            const traits = CONFIG.traitMultipliers[State.trait];
+            const campBonus = State.modifiers.camp ?
+            1.2 : 1.0;
+            const skatesBonus = State.modifiers.skates ? 1.1 : 1.0;
+             for (let stat in trainConf.gain) {
+                let base = trainConf.gain[stat];
+                let currentVal = State[stat];
+                let dim = getDiminishing(currentVal);
+                let tMult = traits[stat] || 1.0;
+                let sMult = (stat === 'ins') ? skatesBonus : 1.0;
+                let finalGain = base * intensityMult * dim * tMult * campBonus * sMult * ageDecay * psycheTrainMult;
+               State[stat] = Math.min(100, State[stat] + finalGain);
+            gainLog.push(`${stat.toUpperCase()} +${finalGain.toFixed(1)}`);
+            }
+        }
+
+        State.hp += hpChange;
+        let maxHp = 100 - State.hpCapMalus;
+        if (State.hp > maxHp) State.hp = maxHp;
+        if (State.modifiers.shield && typeId !== 'rest') {
+            State.modifiers.shield = false;
+            UI.log("高级护具已消耗。");
+        }
+
+        State.actionsLeft--;
+        let logStr = `[Y${State.year}] ${trainConf.name}(${intensityLog})`;
+        if (gainLog.length > 0) logStr += `，${gainLog.join(', ')}`;
+        if (ageDecay < 1.0) logStr += ` (年龄衰减:${((1-ageDecay)*100).toFixed(0)}%)`;
+        logStr += `，HP ${hpChange>0?'+':''}${hpChange}`;
+        UI.log(logStr);
+
+       this.masterEventCheck();
+        UI.updateDashboard();
+    },
+// 【新增】失败条件检查逻辑
+    checkGameOver: function() {
+        // 1. 破产结局
+        if (State.money < 0) {
+            UI.triggerEnding('bankrupt');
+            return;
+        }
+        
+        // 2. 伤病强制退役结局
+        if (State.hp < 0) {
+            UI.triggerEnding('hp_zero');
+            return;
+        }
+      
+        // 3. 绝境结局检测 (内外交困)
+        // 条件：HP <= 29 (无法训练) 且 无法购买回血道具
+        if (State.hp <= 29 && State.actionsLeft > 0) {
+            // 检查最便宜的回血道具 (蜂蜜水 80元)
+            const honeyCost = 80;
+            const massageCost = 800;
+            const honeyLimit = 3;
+            const honeyUsed = State.shopLimits['honey'] || 0;
+            
+            // 还有训练次数，但是不能训练
+            // 检查是否能买蜂蜜水：钱够 且 没限购
+            const canBuyHoney = (State.money >= honeyCost) && (honeyUsed < honeyLimit);
+            // 检查是否能买筋膜枪：钱够
+            const canBuyMassage = (State.money >= massageCost);
+
+            // 如果都买不起（或没次数），且必须回血才能继续训练
+            // 注意：因为现在开放了“彻底休息”，理论上只要有次数就能休息回血，死局很难发生。
+            // 但如果策划要求加入此判定，我们假设“连彻底休息都无法挽回”或者逻辑上依然需要钱维持。
+            // 按照需求描述：“金钱不足购买且次数用完...”，我们添加此判定。
+            if (!canBuyHoney && !canBuyMassage) {
+                // 这里加一个保险：如果HP极低且没钱，虽然可以休息，但如果休息也加不满30（比如HP=10, 休息+15=25 依然无法训练），
+                // 且次数只剩1次，那下回合还是动不了。这种就是死局。
+                if ((State.hp + 15) <= 29 && State.actionsLeft <= 1) {
+                     UI.triggerEnding('despair');
+                }
+            }
+        }
+    },
+    checkInjury: function(hp) {
+        if (State.injuryImmunity) return 'none'; 
+        if (State.modifiers.shield) return 'none';
+        let prob = 0.01;
+      
+        if (hp >= 70) prob = 0.01;
+        else if (hp >= 50) prob = 0.05;
+        else if (hp >= 30) prob = 0.10;
+        if (State.group === 'youth') prob = Math.max(0, prob - 0.02);
+        if (State.group === 'adult' && State.year >= 9) prob += (State.year - 8) * 0.01;
+       // 【新增】心态对受伤率的影响
+        if (State.psyche >= 70 && State.psyche < 90) prob += 0.05; // 自信 +5%
+        if (State.psyche >= 90) prob += 0.10; // 狂热 +10%
+      
+        if (Math.random() < prob) {
+            const roll = Math.random();
+            if (roll < 0.01 && hp < 50) return 'career';
+            if (roll < 0.20 && hp < 70) return 'heavy';
+            return 'light';
+        }
+        return 'none';
+    },
+
+   handleInjury: function(type) {
+        if (type === 'light') {
+            State.hp -= 10;
+            this.updatePsyche(-5); // 【新增】轻伤扣心态
+            UI.log("⚠ 意外轻伤！HP -10，心态 -5");
+            UI.showModal("受伤", "训练中意外受了轻伤。");
+        } else if (type === 'heavy') {
+            State.hp -= 20;
+            State.hpCapMalus += 10;
+            State.heavyInjuryCount++;
+            this.updatePsyche(-10); // 【新增】重伤扣心态
+            UI.log("⚠⚠ 遭遇重伤！HP上限 -10，心态 -10");
+            UI.showModal("重伤", "遭遇重伤！医生说你的身体机能永久下降了。");
+        } else if (type === 'career') {
+          this.updatePsyche(-15);
+            if (Math.random() < 0.25) {
+                UI.triggerEnding('injury');
+            } else {
+           UI.log("⚠⚠⚠ 极重伤！被迫休赛一年！（心态-15） ");
+                UI.showModal("极重伤", "极重伤！本赛季报销。");
+                State.actionsLeft = 0;
+            }
+        }
+    },
+
+        // =================================================================
+    // 【修改】推进阶段逻辑 (改为手动结算制)
+    // =================================================================
+    advancePhase: function() {
+        // --- 情况A：休赛期，点击进入选拔赛 ---
+        if (State.phase === 'offseason') {
+            const isAdult = State.group === 'adult';
+            const qualifyName = "国内选拔赛"; 
+            
+            // 计算选拔赛分数
+            const result = this.calculateScores();
+            
+            // 计算排名
+            const npcConfig = isAdult ? CONFIG.matchConfig.adult.qualify : CONFIG.matchConfig.youth.qualify;
+            let rank = 1;
+            for(let i=0; i<15; i++) {
+                let npc = npcConfig.base + (Math.random() * npcConfig.range);
+                if(npc > result.total) rank++;
+            }
+
+            const threshold = isAdult ? 8 : 5;
+            const qualified = rank <= threshold;
+            
+            // 构建战报文本
+            let msg = `在${qualifyName}中，你排名第 ${rank}，总分 ${result.total.toFixed(2)} (SP:${result.sp.toFixed(2)} FS:${result.fs.toFixed(2)})。`;
+            State.currentSeasonMatches = [];
+            State.gpRankings = []; 
+
+            if (qualified) {
+                State.seasonQualified = true;
+                msg += "<br><br>成功入选国际赛名单！<br>本赛季赛程：";
+                
+                let countries = [...CONFIG.countries]; 
+                let s1 = countries.splice(Math.floor(Math.random() * countries.length), 1)[0];
+                let s2 = countries.splice(Math.floor(Math.random() * countries.length), 1)[0];
+                let prefix = isAdult ? "GP" : "JGP";
+                State.currentSeasonMatches.push(`${prefix} ${s1}站`);
+                State.currentSeasonMatches.push(`${prefix} ${s2}站`);
+                msg += `${prefix}两站 -> `;
+
+                if (isAdult) {
+                    State.currentSeasonMatches.push("全锦赛", "四大洲锦标赛");
+                    msg += "全锦赛 -> 四大洲 -> ";
+                    if (State.year === 7 || State.year === 11) {
+                        State.currentSeasonMatches.push("亚冬会");
+                        msg += "亚冬会 -> ";
+                    }
+                    if ((State.year === 8 || State.year === 12) && rank === 1 && State.fame > 800) {
+                        State.currentSeasonMatches.push("冬奥会");
+                        msg += "[冬奥会] -> ";
+                    }
+                    State.currentSeasonMatches.push("世锦赛");
+                    msg += "世锦赛";
+                } else {
+                    State.currentSeasonMatches.push("全青赛");
+                    msg += "全青赛 -> ";
+                    if (State.year === 4) {
+                        State.currentSeasonMatches.push("青冬奥");
+                        msg += "青冬奥 -> ";
+                    }
+                    State.currentSeasonMatches.push("世青赛");
+                    msg += "世青赛";
+                }
+            } else {
+                // 落选逻辑 (含幸运递补)
+                State.seasonQualified = false;
+                if (rank > threshold && rank <= threshold + 3 && Math.random() < 0.2) {
+                    State.seasonQualified = true;
+                    State.luckyFish = true;
+                    msg += "<br><br>但是！原定选手因伤退赛，你作为第一候补被紧急征召！";
+                    let countries = [...CONFIG.countries];
+                    let s1 = countries[Math.floor(Math.random() * countries.length)];
+                    let prefix = isAdult ? "GP" : "JGP";
+                    State.currentSeasonMatches = [`${prefix} ${s1}站`];
+                    if(isAdult) State.currentSeasonMatches.push("全锦赛", "四大洲锦标赛", "世锦赛");
+                    else State.currentSeasonMatches.push("全青赛", "世青赛");
+                } else {
+                    if (isAdult) State.currentSeasonMatches = ["全锦赛"];
+                    else State.currentSeasonMatches = ["全青赛"];
+                    msg += `<br><br>未能获得国际赛名额。本赛季仅参加${isAdult?"全锦赛":"全青赛"}。`;
+                }
+            }
+
+            let fatigue = Math.floor(Math.random() * 6) + 5;
+            State.hp -= fatigue;
+            msg += `<br>(比赛消耗 HP -${fatigue})`;
+
+            // 显示结果并进入赛季
+            UI.showModal("选拔赛结果", msg, () => {
+                State.phase = 'season';
+                State.actionsLeft = 2; 
+                let maxHp = 100 - State.hpCapMalus;
+                State.hp = Math.min(maxHp, State.hp + 20);
+                UI.log(`选拔赛结束，进入赛季。`);
+                UI.updateDashboard();
+            });
+
+        } else {
+            // --- 情况B：赛季中 ---
+            
+            if (State.currentSeasonMatches.length > 0) {
+                // B1: 还有比赛，去打比赛
+                this.runNextMatch();
+            } else {
+                // B2: 没比赛了，说明玩家点击的是"赛季结束"按钮
+                // 1. 生成总结报告HTML字符串
+            let summary = `<h3 style="text-align:center;">本赛季总结</h3><ul style="text-align:left; list-style-position: inside; padding-left:0;">`;
+            summary += `<li>国际赛资格：${State.seasonQualified ? `是 ${State.luckyFish ? '(<span style=\\"color:#e17055;\\">幸运递补</span>)' : ''}` : '否'}</li>`;
+            summary += `<li>总决赛资格：${State.qualifiedForGPFinalThisSeason ? '<span style=\\"color:#00b894;\\">是</span>' : '否'}</li>`;
+            summary += `<hr style="border:none; border-top:1px dashed #ccc; margin: 8px 0;">`;
+            summary += `<li>训练次数：${State.trainsThisSeason}</li>`;
+            summary += `<li>休息次数：${State.restsThisSeason}</li>`;
+            summary += `<li>训练受伤：${State.injuriesThisSeason > 0 ? `<span style=\\"color:#d63031;\\">${State.injuriesThisSeason}次</span>` : '无'}</li>`;
+            summary += `<hr style="border:none; border-top:1px dashed #ccc; margin: 8px 0;">`;
+            summary += `<li>获得奖牌：🥇${State.medalsThisSeason.G} 🥈${State.medalsThisSeason.S} 🥉${State.medalsThisSeason.B}</li>`;
+            summary += `</ul><br>`;
+
+            // 2. 组合最终的弹窗信息
+            const message = summary + "本赛季所有赛事已圆满结束，即将进入休赛期。";
+
+            // 3. 显示带有总结的弹窗
+            UI.showModal( "赛季结束",message, () => {
+                 this.endSeason();
+                });
+            }
+        }
+    },
+
+
+     // =================================================================
+    // 【重构】比赛得分计算框架
+    // =================================================================
+        calculateScores: function(env = null) {
+        // 1. 基础配置 (不变)
+        const baseScores = { sp: 26.25, fs: 42.5 };
+        const baseWeights = {
+            sp: { pow: 0.28, art: 0.28, ins: 0.10, bod: 0.0275 },
+            fs: { pow: 0.30, art: 0.30, ins: 0.50, bod: 0.525 }
+        };
+        let finalWeights = JSON.parse(JSON.stringify(baseWeights));
+
+        // 2. 环境修正 (不变)
+        if (env && env.effect) {
+            for (const key in env.effect) {
+                if (key.startsWith('sp_') || key.startsWith('fs_')) {
+                    const [program, stat] = key.split('_');
+                    if(finalWeights[program] && finalWeights[program][stat] !== undefined) {
+                        finalWeights[program][stat] += env.effect[key];
+                    }
+                }
+            }
+        }
+
+        // 3. 属性分计算 (不变)
+        const spAttrScore = State.pow * finalWeights.sp.pow + State.art * finalWeights.sp.art + State.ins * finalWeights.sp.ins + State.bod * finalWeights.sp.bod;
+        const fsAttrScore = State.pow * finalWeights.fs.pow + State.art * finalWeights.fs.art + State.ins * finalWeights.fs.ins + State.bod * finalWeights.fs.bod;
+
+        // 4. HP修正 (不变)
+        let hpModifier = 0.8 + (State.hp / 500);
+        if (env && env.effect && env.effect.isSpecial === 'altitude_hp_effect') {
+            hpModifier = 0.8 + (State.hp / 600);
+        }
+
+        // 5. 【核心修改】心态修正与随机系数
+        let psycheScoreMult = 1.0;
+        let randomModifier = 1.0;
+
+        // 判断心态区间
+        if (State.psyche < 10) { // 崩溃
+            psycheScoreMult = 0.9;
+        } else if (State.psyche < 30) { // 焦虑
+            psycheScoreMult = 0.95;
+        } else if (State.psyche < 70) { // 平和
+            psycheScoreMult = 1.0;
+        } else if (State.psyche < 90) { // 自信
+            psycheScoreMult = 1.05;
+        } else { // 狂热 (90-100)
+            psycheScoreMult = 1.1; // 补充了1.1倍率
+        }
+
+        if (State.psyche >= 90) {
+            // 【狂热状态】：无视灵感，强制最大波动 (0.9 ~ 1.1)
+            // 逻辑：基础 1.0 + (-0.1 到 +0.1)
+            randomModifier = 0.9 + Math.random() * 0.2;
+        } else {
+            // 【普通状态】：受灵感影响稳定性
+            const stability = (State.bod + State.ins) / 200;
+            const reducedWidth = 0.2 * (1 - stability * 0.75);
+            randomModifier = (1 - reducedWidth / 2) + Math.random() * reducedWidth;
+        }
+
+        // 6. 最终计算
+        let spFinal = (baseScores.sp + spAttrScore) * hpModifier * randomModifier * psycheScoreMult;
+        let fsFinal = (baseScores.fs + fsAttrScore) * hpModifier * randomModifier * psycheScoreMult;
+        
+        // 环境额外加分 (不变)
+        if (env && env.effect && env.effect.score_bonus) {
+            spFinal += env.effect.score_bonus * 0.3;
+            fsFinal += env.effect.score_bonus * 0.7;
+        }
+
+        return {
+            sp: spFinal,
+            fs: fsFinal,
+            total: spFinal + fsFinal
+        };
+    },
+
+        // =================================================================
+    // 【修改】执行下一场比赛 (修复了跳过问题)
+    // =================================================================
+    runNextMatch: function() {
+        // 安全检查：防止空数组报错
+        if (State.currentSeasonMatches.length === 0) {
+            UI.updateDashboard();
+            return;
+        }
+
+        // 取出下一场比赛的名字
+        const matchName = State.currentSeasonMatches.shift();
+      const self = this; // 创建一个this的别名，防止在回调函数中丢失上下文  
+      
+        // 执行比赛逻辑
+        this.runCompetitionLogic(matchName, (rank, score, sp, fs, rewardMoney, rewardFame, fatigue, envReport) => {
+            
+            // 构建弹窗显示信息
+            let info = `【${matchName} 结算】<br> 排名：第 ${rank} 名<br> 短节目：${sp} <br>自由滑：${fs} <br> 总分：${score} <br>资金：+${rewardMoney} <br> 名气：+${rewardFame} <br> 体力：-${fatigue}`;
+            
+            // 如果有环境文案，追加显示
+            if (envReport) {
+                info += `<br><div style="font-size: 13px; margin-top: 10px; text-align: left;">${envReport.replace(/\n/g, '<br>')}</div>`;
+            }
+
+            // 处理 GP/JGP 总决赛晋级逻辑
+            if (matchName.includes("GP") && matchName.includes("站")) { 
+                State.gpRankings.push(rank);
+                let canEnterFinal = false;
+                if (State.gpRankings.length === 2) {
+                    if (State.gpRankings[0] <= 3 && State.gpRankings[1] <= 3) canEnterFinal = true;
+                } else if (State.gpRankings.length === 1 && State.seasonQualified === false) { 
+                    if (State.gpRankings[0] <= 3) canEnterFinal = true;
+                }
+
+                if (canEnterFinal && !State.currentSeasonMatches.includes("JGP总决赛") && !State.currentSeasonMatches.includes("GP总决赛")) {
+                  State.qualifiedForGPFinalThisSeason = true; // 新增：标记本赛季获得总决赛资格 
+                  if (State.group === 'youth') {
+                        State.currentSeasonMatches.unshift("JGP总决赛");
+                        info += "<br><strong>表现优异，获得 [JGP总决赛] 资格！</strong>";
+                    } else {
+                        State.currentSeasonMatches.unshift("GP总决赛");
+                        info += "<br><strong>表现优异，获得 [GP总决赛] 资格！</strong>";
+                    }
+                }
+            }
+
+            // 弹出结算窗口
+            UI.showModal("比赛战报", info, () => {
+                // 1. 刷新界面 (这是关键：这会让按钮文字根据剩余赛程自动更新)
+                // 如果没比赛了，按钮会变成 "赛季结束"，等待玩家再次点击
+                UI.updateDashboard(); 
+// 在比赛结算后，调用“主事件检查官”
+                self.masterEventCheck();
+              
+                // 2. 检查死亡/破产条件
+                if (State.hp <= 0) {
+                    UI.triggerEnding('hp_zero');
+                    return; 
+                }
+                if (State.money < 0) {
+                    UI.triggerEnding('bankrupt');
+                    return; 
+                }
+
+// ▼▼▼ 核心修改点 ▼▼▼
+    // 检查赛季是否还有剩余比赛
+    if (State.currentSeasonMatches.length > 0) {
+        // 如果还有比赛，则照常进行一次事件检查
+        self.masterEventCheck();
+    } else {
+        // 如果这已经是最后一场比赛，则只记录日志，不进行事件检查
+        UI.log("本赛季赛程已全部结束。");
+    }
+    // ▲▲▲ 修改结束 ▲▲▲
+              
+            });
+        });
+    },
+
+    // =================================================================
+    // 【重构】比赛主逻辑，集成环境系统 (已修复变量顺序与逻辑断层)
+    // =================================================================
+    runCompetitionLogic: function(matchName, callback) {
+        // --- 第一步：环境抽取与计算 ---
+        let chosenEnv = null;
+        let envReport = "";
+
+        // 1. 环境抽奖逻辑 (总概率60%)
+        if (Math.random() < 0.6) {
+            let roll = Math.random(); 
+            for (const env of CONFIG.matchModifiers) {
+                if (roll < env.probability) {
+                    chosenEnv = JSON.parse(JSON.stringify(env)); 
+                    break; 
+                }
+                roll -= env.probability;
+            }
+        }
+
+        // 2. 处理特殊反转逻辑 ("冷淡观众")
+        if (chosenEnv && chosenEnv.id === 'cold_crowd' && chosenEnv.reversal) {
+            if (chosenEnv.reversal.condition(State)) {
+                chosenEnv.effect = chosenEnv.reversal.effect; 
+                envReport = chosenEnv.desc + "\n" + chosenEnv.reversal.desc; 
+            } else {
+                envReport = chosenEnv.desc; 
+            }
+        } else if (chosenEnv) {
+            envReport = chosenEnv.desc; 
+        }
+        
+        // 3. 调用计分函数
+        const scores = this.calculateScores(chosenEnv);
+        const bonus = State.tempMatchScoreBonus || 0; 
+        const finalSP = scores.sp + bonus * 0.3;
+        const finalFS = scores.fs + bonus * 0.7;
+        const finalTotal = finalSP + finalFS;
+        State.tempMatchScoreBonus = 0;
+
+        // 4. 处理HP消耗
+        let fatigue = Math.floor(Math.random() * 6) + 5; 
+        if (chosenEnv && chosenEnv.effect && chosenEnv.effect.extraHpCost) {
+            fatigue += chosenEnv.effect.extraHpCost;
+        }
+        State.hp -= fatigue; 
+
+        // --- 第二步：确定对手强度 (Config Selection) ---
+        let config = null;
+if (State.group === 'youth') {
+    if (matchName.includes("JGP") && matchName.includes("站")) config = CONFIG.matchConfig.youth.jgp;
+    else if (matchName.includes("JGP总决赛")) config = CONFIG.matchConfig.youth.final; // 变得更具体
+    else if (matchName.includes("全青赛")) config = CONFIG.matchConfig.youth.nationals;
+    else if (matchName.includes("青冬奥")) config = CONFIG.matchConfig.youth.olympics_youth;
+    else if (matchName.includes("世青赛")) config = CONFIG.matchConfig.youth.worlds; // 变得更具体
+} else { // 成年组
+    if (matchName.includes("GP") && matchName.includes("站")) config = CONFIG.matchConfig.adult.gp;
+    else if (matchName.includes("GP总决赛")) config = CONFIG.matchConfig.adult.final; // 变得更具体
+    else if (matchName.includes("全锦赛")) config = CONFIG.matchConfig.adult.nationals;
+    else if (matchName.includes("四大洲")) config = CONFIG.matchConfig.adult['4cc'];
+    else if (matchName.includes("亚冬会")) config = CONFIG.matchConfig.adult.asiangames;
+    else if (matchName.includes("世锦赛")) config = CONFIG.matchConfig.adult.worlds; // 变得更具体
+    else if (matchName.includes("冬奥会")) config = CONFIG.matchConfig.adult.olympics; // 变得更具体
+}
+
+// 新增：健壮性检查。如果没有找到任何配置，就发出警告并使用一个基础配置。
+if (!config) {
+    console.error(`警告：未找到比赛 [${matchName}] 的难度配置！`);
+    // 使用一个最基础的配置作为后备，防止游戏崩溃
+    config = State.group === 'youth' ? CONFIG.matchConfig.youth.qualify : CONFIG.matchConfig.adult.qualify;
+}
+
+        // --- 第三步：确定参赛人数 ---
+        let totalParticipants;
+        if (matchName.includes("总决赛")) {
+            totalParticipants = 6;
+        } else if (matchName.includes("GP")) {
+            totalParticipants = 12;
+        } else if (matchName.includes("JGP")) {
+            totalParticipants = 18;
+        } else {
+            totalParticipants = 24;
+        }
+
+        // --- 第四步：计算排名 ---
+        let rank = 1;
+        // 模拟对手分数并比较
+        for(let i=0; i<totalParticipants-1; i++) {
+            let npcSP = (config.base * 0.35) + (Math.random() * config.range * 0.35);
+            let npcFS = (config.base * 0.65) + (Math.random() * config.range * 0.65);
+            let npcTotal = npcSP + npcFS;
+            if (npcTotal > finalTotal) rank++;
+        }
+
+        // --- 第五步：计算奖励 ---
+        let rewardMoney = Math.max(0, (totalParticipants - rank) * (State.group==='youth'?20:50));
+        let rewardFame = 0;
+        
+        if (rank <= 3) {
+          if(rank === 1) State.medalsThisSeason.G++;
+        else if(rank === 2) State.medalsThisSeason.S++;
+        else if(rank === 3) State.medalsThisSeason.B++;
+          
+          let baseFame = State.group==='youth' ? 150 : 400;
+            if (rank === 2) baseFame *= 0.6;
+            if (rank === 3) baseFame *= 0.4;
+            if (matchName.includes("冬奥")) baseFame *= 2.5;
+            else if (matchName.includes("世锦")) baseFame *= 1.5;
+            else if (matchName.includes("总决赛")) baseFame *= 1.2;
+            else if (matchName.includes("亚冬会")) baseFame *= 1.1;
+
+            rewardFame = Math.floor(baseFame);
+            
+            if (matchName.includes("冬奥") && rank === 1) {
+                State.hasOlympicGold = true;
+                rewardMoney += 2000;
+            }
+
+            let key = (State.group === 'youth' ? 'i' : 'i') + (rank===1?'G':(rank===2?'S':'B'));
+            State.medals[key]++;
+        } else {
+            rewardFame = Math.max(5, (totalParticipants - rank) * 2);
+        }
+      
+ let psycheChange = 0;
+    if (rank === 1) psycheChange = 5;
+    else if (rank <= 3) psycheChange = 3;
+    else if (rank > 10) psycheChange = -5;
+    
+    if (psycheChange !== 0) {
+        this.updatePsyche(psycheChange);
+    }
+      
+        State.money += rewardMoney;
+        State.fame += rewardFame;
+        
+        UI.log(`参加 ${matchName}，排名${rank}，SP:${finalSP.toFixed(2)} FS:${finalFS.toFixed(2)}`);
+        // --- 新增：记录本场比赛的结果 ---
+      State.lastMatchResult = { name: matchName, rank: rank };
+        // --- 第六步：回调输出结果 (这时候 rank 和 reward 等变量都已经算好了) ---
+        callback(rank, finalTotal.toFixed(2), finalSP.toFixed(2), finalFS.toFixed(2), rewardMoney, rewardFame, fatigue, envReport);
+    },
+
+    endSeason: function() {
+        State.year++;
+        State.shopLimits = { honey: 0, camp: 0 };
+
+        if (State.group === 'youth' && State.year > 4) {
+            State.group = 'adult';
+            State.year = 5; 
+            State.fame += 100;
+            UI.showModal("升组", "恭喜！你已升入成年组。挑战更强的对手吧！");
+        }
+
+        if (State.year > 12) {
+            this.evaluateEnding();
+            return;
+        }
+
+        State.phase = 'offseason';
+        State.actionsLeft = 4;
+        State.modifiers.camp = false; 
+
+        let bodBonus = Math.floor(State.bod / 10) * 2;
+        let dietBonus = State.modifiers.diet ? 10 : 0;
+        let maxHp = 100 - State.hpCapMalus;
+        State.hp = Math.min(maxHp, State.hp + 30 + bodBonus + dietBonus);
+
+        let baseIncome = 100;
+        if (State.fame > 100) baseIncome = 150;
+        if (State.fame > 500) baseIncome = 300;
+        if (State.fame > 1500) baseIncome = 600;
+        if (State.fame > 4000) baseIncome = 1200;
+        State.money += baseIncome;
+
+      State.triggeredEventCount = 0;
+    State.injuryImmunity = false;
+    // ▼▼▼ 新增：在此处重置年度统计数据 ▼▼▼
+    State.trainsThisSeason = 0;
+    State.restsThisSeason = 0;
+    State.injuriesThisSeason = 0;
+    State.qualifiedForGPFinalThisSeason = false;
+    State.medalsThisSeason = { G: 0, S: 0, B: 0 };
+        this.rollForContactEvents();    // 为新的一年抽取联系人事件
+      
+        UI.log(`新的一年开始了。资金+${baseIncome}`);
+        UI.updateDashboard();
+    },
+
+    evaluateEnding: function() {
+        State.ended = true;
+        UI.switchScreen('screen-ending');
+        
+        let title = "";
+        let desc = "";
+
+        if (State.hasOlympicGold && State.fame > 4000) {
+            title = "冰坛女皇"; desc = "你成为跨时代的传奇，名字被刻在花滑历史的丰碑上。";
+          } else if (State.art >= 90 && State.ins >= 80 && State.pow < 70) {
+            title = "冰上织梦者"; desc = "虽然你的跳跃难度从未达到顶峰，但你对音乐的理解和冰上表演的创造力，早已超越了时代。退役后，你成立了自己的编舞工作室，无数未来的冠军在你的指导下，学会了如何在冰上讲述动人的故事。你没能成为最强的选手，但你成为了无数人心中的花滑艺术家。";
+            } else if (State.ins >= 95 && State.art < 70 && State.pow < 65 && State.bod < 70 && !State.isGen2) {
+            title = "彩蛋结局：象牙塔之巅"; desc = "花样滑冰对你而言，更像是一场关于力学、生理学和策略分析的复杂实验。你从未完全沉浸于赛场的喧嚣，而是痴迷于其背后的原理。退役后，你毅然重返校园，将你在冰场上锻炼出的惊人分析能力和专注力投入学术研究。多年后，你的名字不仅出现在花滑选手的名单上，还是出现在了诺贝尔奖的获奖晚宴中。";
+            } else if (State.fame > 4000) {
+            title = "时代标志"; desc = "虽然缺少一枚奥运金牌，但你是大众公认的冰上巨星。";
+        } else if (State.fame > 1500 && (State.medals.iG + State.medals.iS + State.medals.iB) > 1) {
+            title = "国际名将"; desc = "你多次登上领奖台，是活跃于国际赛场的顶尖选手。";
+        } else if (State.fame > 500) {
+            title = "知名教练"; desc = "你的职业生涯稳定而平淡，退役后成为备受尊敬的顶级教练。";
+        } else if (State.fame > 100) {
+            title = "国内名将"; desc = "你在国内赛场留下了浓墨重彩的一笔，是省队的骄傲。";
+        } else {
+            title = "冰场过客"; desc = "你曾经是运动员，最终回归普通人的平淡生活。";
+        }
+
+        document.getElementById('end-title').innerText = title;
+        document.getElementById('end-desc').innerText = desc;
+        
+        let badges = [];
+        if (State.pow >= 100 || State.art >= 100 || State.ins >= 100) badges.push("【专项天才】");
+        // 成就判断逻辑
+        const stats = { '爆发': State.pow, '艺术': State.art, '体魄': State.bod, '灵感': State.ins };
+        const maxStat = Object.keys(stats).reduce((a, b) => stats[a] > stats[b] ? a : b);
+        const minStatVal = Math.min(State.pow, State.art, State.bod, State.ins);
+        const maxStatVal = Math.max(State.pow, State.art, State.bod, State.ins);
+        const diff = maxStatVal - minStatVal;
+
+        if (State.art >= maxStatVal) badges.push("【滑表之神】");
+        if (State.pow >= maxStatVal) badges.push("【人中弹簧】");
+        if (State.bod >= maxStatVal) badges.push("【冰上永动机】");
+        if (State.ins >= maxStatVal) badges.push("【大数学家】");
+        
+        if (minStatVal > 85 && diff < 3) badges.push("【六边形战士】");
+        if (diff > 20) badges.push("【偏科战神】");
+        if (State.fame > 5000) badges.push("【花滑明星】");
+
+        if (State.heavyInjuryCount === 0) badges.push("【钢铁之躯】");
+        if (State.luckyFish) badges.push("【奇迹锦鲤】");
+      if (State.hasBadgeSoftHeart) badges.push("【心软の神】"); // 新增成就
+      if (State.totalRestsAllTime > 24) badges.push("【劳逸结合】");
+if (State.totalRestsAllTime < 10) badges.push("【永动机】");
+        if (State.hasOlympicGold && State.medals.iG >= 3) badges.push("【全满贯】");
+        
+        document.getElementById('end-badges').innerText = badges.join(" ");
+        document.getElementById('end-stats-summary').innerText = 
+            `最终属性: 爆发${Math.floor(State.pow)} / 艺术${Math.floor(State.art)} / 体魄${Math.floor(State.bod)} / 灵感${Math.floor(State.ins)} | 名气: ${State.fame}`;
+    },
+
+    triggerEnding: function(type) {
+        State.ended = true;
+        UI.switchScreen('screen-ending');
+        if (type === 'wind') {
+            document.getElementById('end-title').innerText = "彩蛋结局：风的传人";
+            document.getElementById('end-desc').innerText = "你脱下了考斯滕，换上了紧身的速度滑冰服。几年后，虽然花滑赛场少了一个天才，但短道速滑的世界纪录里，多了一个属于你的名字。";
+        } else if (type === 'injury') {
+            document.getElementById('end-title').innerText = "结局：遗憾离场";
+            document.getElementById('end-desc').innerText = "由于伤病，你遗憾离开了职业赛场。";
+        }
+    }, // <--- 1. 注意这里！为了连接下面的新函数，我加了一个英文逗号
+    // 【新增】心态更新核心函数（含灵感衰减）
+    updatePsyche: function(baseChange) {
+        // 衰减公式：灵感越高，心态变化越小
+        // 灵感0 -> 变化*1.0；灵感100 -> 变化*0.6；灵感250(理论极限) -> 变化*0
+        let dampener = 1 - (State.ins / 250);
+        if (dampener < 0) dampener = 0; // 防止负数
+        
+        let finalChange = baseChange * dampener;
+        
+        // 更新并限制在 0-100
+        State.psyche = Math.max(0, Math.min(100, State.psyche + finalChange));
+       if (State.psyche <= 0 && !State.ended) {
+        UI.triggerEnding('mental_breakdown');}
+    },
+    /* --- [新增功能] 属性上限统一管理器 --- */
+    enforceMaxStats: function() {
+        // 定义我们需要限制的四个核心属性
+        const limits = ['art', 'bod', 'pow', 'ins'];
+        
+        // 遍历这四个属性，逐一检查
+        limits.forEach(key => {
+            // 如果属性存在且超过了 100
+            if (State[key] > 100) {
+                State[key] = 100; // 强制设为 100
+            }
+        });
+        
+        // 顺便也可以把 HP 的上限检查放在这里（可选），保持逻辑统一
+        let maxHp = 100 - State.hpCapMalus;
+        if (State.hp > maxHp) State.hp = maxHp;
+    }
+    /* --- [新增结束] --- */
+};
+
+
+
+/* ============================================================
+   5. 界面控制 (UI Controller)
+   ============================================================ */
+const UI = {
+    switchScreen: function(screenId) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    },
+
+    renderPrologue: function() {
+        const stepData = CONFIG.prologue[State.step];
+        const container = document.getElementById('prologue-step-content');
+        let html = `<p>${stepData.desc}</p>`;
+        
+        stepData.options.forEach((opt, idx) => {
+            html += `<button class="btn" onclick="Game.choosePrologue(${idx})"><strong>${opt.txt}</strong><small>${opt.tag}</small></button>`;
+        });
+        container.innerHTML = html;
+    },
+
+    updateStory: function(text, options) {
+        document.getElementById('story-text').innerHTML = text;
+        const btnContainer = document.getElementById('story-options');
+        btnContainer.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = opt.txt;
+            btn.onclick = () => { opt.action(btn); };
+            btnContainer.appendChild(btn);
+        });
+    },
+
+    showModal: function(title, content, onConfirm = null) {
+        document.getElementById('modal-title').innerText = title;
+        // 【修改】从 .innerText 改为 .innerHTML，这样它就能解析HTML标签了
+        document.getElementById('modal-content').innerHTML = content;
+        const overlay = document.getElementById('modal-alert');
+        const btn = document.getElementById('modal-btn');
+        overlay.style.display = 'flex';
+        btn.onclick = function() {
+            overlay.style.display = 'none';
+            if (onConfirm) onConfirm();
+        };
+    },
+
+    initDashboard: function() {
+        const trainContainer = document.getElementById('training-buttons');
+        trainContainer.innerHTML = '';
+        CONFIG.trainings.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = 'mode-btn';
+            btn.id = `train-btn-${t.id}`;
+            btn.innerHTML = `${t.name}<br><span style="color:#636e72">${t.desc}</span>`;
+            btn.onclick = () => {
+                State.selectedTrainingId = t.id;
+                UI.highlightTraining(t.id);
+            };
+            trainContainer.appendChild(btn);
+        });
+
+        const intensityContainer = document.getElementById('intensity-selector');
+        intensityContainer.innerHTML = `
+            <button class="mode-btn" id="int-recover" onclick="UI.setIntensity('recover')">恢复休闲<br>x0.5 (+5HP)</button>
+            <button class="mode-btn selected" id="int-normal" onclick="UI.setIntensity('normal')">常规训练<br>x1.0 (-10HP)</button>
+            <button class="mode-btn" id="int-sprint" onclick="UI.setIntensity('sprint')">冲刺突击<br>x1.2 (-15HP)</button>
+        `;
+        this.updateDashboard();
+    },
+
+    highlightTraining: function(id) {
+        document.querySelectorAll('#training-buttons .mode-btn').forEach(b => b.classList.remove('selected'));
+        const btn = document.getElementById(`train-btn-${id}`);
+        if(btn) btn.classList.add('selected');
+    },
+
+    setIntensity: function(mode) {
+        State.selectedIntensity = mode;
+        document.querySelectorAll('#intensity-selector .mode-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById(`int-${mode}`).classList.add('selected');
+    },
+
+    updateDashboard: function() {
+        document.getElementById('ui-year').innerText = `第${State.year}年 ${State.group === 'youth' ? '青年组' : '成年组'} · ${State.phase === 'offseason' ? '休赛期' : '赛季'}`;
+        
+        let targetText = State.group === 'youth' ? '升组' : '冬奥会';
+        let targetYear = State.group === 'youth' ? 5 : (State.year <= 8 ? 8 : 12);
+        let yearsLeft = targetYear - State.year;
+        document.getElementById('ui-target').innerText = `距${targetText}还有 ${yearsLeft} 年`;
+
+        document.getElementById('ui-medals').innerText = `🥇${State.medals.iG} 🥈${State.medals.iS} 🥉${State.medals.iB}`;
+        document.getElementById('ui-res').innerText = `💰 ${State.money}`;
+        document.getElementById('ui-actions-left').innerText = `剩余次数: ${State.actionsLeft}`;
+
+        const trainBtn = document.getElementById('btn-do-train');
+        trainBtn.disabled = (State.actionsLeft <= 0);
+
+        if (State.hp <= 29) {
+            trainBtn.innerText = "身体透支 (仅能休息)";
+            // 注意：按钮虽然亮着，但如果玩家点的不是“休息”，会在 handleTraining 里被拦截
+        } else {
+            trainBtn.innerText = "开始训练";
+        }
+
+        const phaseBtn = document.getElementById('btn-phase');
+        if (State.phase === 'offseason') {
+            phaseBtn.innerText = "开始赛季 (选拔赛)";
+            phaseBtn.disabled = (State.actionsLeft > 0); 
+        } else {
+            if (State.currentSeasonMatches.length > 0) {
+                phaseBtn.innerText = `站上赛场: ${State.currentSeasonMatches[0]}`;
+                phaseBtn.disabled = false;
+            } else {
+                phaseBtn.innerText = "赛季结束";
+                phaseBtn.disabled = false;
+            }
+        }
+
+        const renderBar = (label, val, color, extra = '') => {
+            return `
+            <div class="stat-row">
+                <div class="stat-label">${label} ${extra}</div>
+                <div class="progress-bg">
+                    <div class="progress-fill" style="width: ${Math.min(100, val)}%; background-color: ${color}"></div>
+                    <div class="marker" style="left:60%"></div>
+                    <div class="marker" style="left:85%"></div>
+                </div>
+                <div class="stat-val">${val.toFixed(1)}</div>
+            </div>`;
+        };
+
+        let hpColor = State.hp >= 70 ? 'var(--hp-high)' : (State.hp >= 30 ? 'var(--hp-mid)' : 'var(--hp-low)');
+        let bodExtra = `<span style="color:#d63031; font-size:10px;">♥+${Math.floor(State.bod/10)*2}</span>`;
+
+        let html = "";
+        html += renderBar("HP", State.hp, hpColor, `/${100-State.hpCapMalus}`);
+        html += renderBar("灵感", State.ins, 'var(--ins-color)');
+        html += renderBar("艺术", State.art, 'var(--art-color)');
+        html += renderBar("体魄", State.bod, 'var(--bod-color)', bodExtra);
+        html += renderBar("爆发", State.pow, 'var(--pow-color)');
+        html += renderBar("名气", Math.min(100, State.fame / 4000 * 100), '#f1c40f', `(${State.fame})`);
+
+              // ... html += renderBar("爆发", ...); 之后 ...
+
+        // 【新增】心态条渲染
+        // 根据数值决定颜色
+        let psycheColor = '#00b894'; // 默认绿色(平和)
+        let psycheLabel = "平和";
+        
+        if (State.psyche < 10) { psycheColor = '#2c3e50'; psycheLabel = "崩溃"; } // 深蓝
+        else if (State.psyche < 30) { psycheColor = '#74b9ff'; psycheLabel = "焦虑"; } // 浅蓝
+        else if (State.psyche < 70) { psycheColor = '#00b894'; psycheLabel = "平和"; } // 绿
+        else if (State.psyche < 90) { psycheColor = '#e17055'; psycheLabel = "自信"; } // 橙
+        else { psycheColor = '#d63031'; psycheLabel = "狂热"; } // 红
+
+        // 复用 renderBar 函数，但在 label 后加状态描述
+        html += renderBar("心态", State.psyche, psycheColor, `(${psycheLabel})`);
+     
+        document.getElementById('ui-stats').innerHTML = html;
+        },
+
+    log: function(msg) {
+        const box = document.getElementById('activity-log');
+        const div = document.createElement('div');
+        div.className = 'log-item';
+        div.innerText = msg;
+        box.prepend(div);
+    },
+
+    openShop: function() {
+        const list = document.getElementById('shop-list');
+        document.getElementById('shop-money').innerText = State.money;
+        list.innerHTML = '';
+        
+        let discount = 1.0;
+        if (State.fame > 4000) discount = 0.8;
+        else if (State.fame > 1500) discount = 0.85;
+        else if (State.fame > 500) discount = 0.9;
+        else if (State.fame > 100) discount = 0.95;
+
+        CONFIG.shopItems.forEach(item => {
+            if (item.minGroup === 'adult' && State.group === 'youth') return;
+            if (item.oneTime && (
+                (item.id === 'skates' && State.modifiers.skates) || 
+                (item.id === 'diet' && State.modifiers.diet)
+            )) return;
+
+            const realCost = Math.floor(item.cost * discount);
+            const canBuy = State.money >= realCost;
+            
+            // 检查年度限购
+            let limitTxt = "";
+            let isLimitReached = false;
+            if (item.limit) {
+                const count = State.shopLimits[item.id] || 0;
+                limitTxt = `<br><span style="color:#e17055; font-size:10px">(本年剩余: ${item.limit - count}/${item.limit})</span>`;
+                if (count >= item.limit) isLimitReached = true;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            div.innerHTML = `
+                <div><strong>${item.name}</strong>${limitTxt}<br><small>${item.desc}</small></div>
+                <button class="btn" style="width:80px; padding:5px; background:${(canBuy && !isLimitReached)?'#00b894':'#b2bec3'}" 
+                    onclick="UI.buyItem('${item.id}', ${realCost})" ${(canBuy && !isLimitReached)?'':'disabled'}>${realCost}</button>
+            `;
+            list.appendChild(div);
+        });
+        document.getElementById('modal-shop').style.display = 'block';
+    },
+
+    closeShopModal: function() { document.getElementById('modal-shop').style.display = 'none'; },
+
+    buyItem: function(itemId, cost) {
+        // 1. 查找商品数据
+        const item = CONFIG.shopItems.find(i => i.id === itemId);
+        if (!item) return;
+
+        // 2. 检查金钱
+        if (State.money < cost) {
+            this.showModal("提示", "资金不足，无法购买！");
+            return;
+        }
+
+        // 3. 检查限购逻辑 (limit)
+        if (item.limit) {
+            const count = State.shopLimits[itemId] || 0;
+            if (count >= item.limit) {
+                this.showModal("提示", "该商品今年已达到购买上限！");
+                return;
+            }
+            State.shopLimits[itemId] = count + 1;
+        }
+
+        // 4. 扣除金钱
+        State.money -= cost;
+
+        // 5. 根据 ID 执行商品效果
+        switch (itemId) {
+            case 'honey': // 秘制蜂蜜水
+                State.hp = Math.min(100, State.hp + 10); // 防止超过 100
+                this.showModal("购买成功", "喝下蜂蜜水，HP恢复了 10 点！");
+                break;
+                
+            case 'massage': // 深层筋膜枪
+                State.hp = Math.min(100, State.hp + 25);
+                this.showModal("购买成功", "深层肌肉得到放松，HP大幅恢复 25 点！");
+                break;
+
+            case 'shield': // 高级护具
+                State.modifiers.shield = true; // 需要在 State.modifiers 里确保有这个字段
+                this.showModal("购买成功", "装备了护具，下次受伤概率将减半。");
+                break;
+
+            case 'skates': // 顶级进口冰鞋 (永久灵感加成)
+                State.modifiers.skates = true; // 需在比赛计算分数的公式里检测这个标记
+                this.showModal("购买成功", "装备顶级冰鞋！灵感加成已生效。");
+                break;
+            
+            case 'diet': // 私人营养师 (永久回血)
+                State.modifiers.diet = true; // 需在每年结算逻辑里检测这个标记
+                this.showModal("购买成功", "签约营养师，每年休赛期将自动恢复更多健康。");
+                break;
+
+            case 'camp': // 自费外训 (训练效果+20%)
+                State.modifiers.camp = true;
+                this.showModal("购买成功", "已报名外训，本年度训练收益提升 20%！");
+                break;
+            
+            case 'master_class': // 传奇大师课 (立即全属性+2)
+                State.pow += 2;
+                State.art += 2;
+                State.ins += 2;
+                State.bod += 2;
+                this.showModal("购买成功", "经过大师指点，你的全属性提升了 2 点！");
+                break;
+
+            case 'ballet_class': // 大师级芭蕾课
+                State.art += 3;
+                this.showModal("购买成功", "优雅的芭蕾训练提升了你的艺术表现力 (+3)！");
+                break;
+
+            case 'lucky_charm': // 好运红绳
+                State.luckyFish = true; // 对应原本代码里的 luckyFish 标记
+                this.showModal("购买成功", "佩戴了红绳，感觉运气变好了！");
+                break;
+            
+            case 'psychology': // 心理辅导师
+                State.ins += 1; // 需要在 State.modifiers 里确保有这个字段
+                this.showModal("购买成功", "接受了心理辅导，你在冰场更冷静了。");
+                break;
+            
+            case 'cat_cafe':
+                Game.updatePsyche(10);
+                this.showModal("购买成功", "可爱的毛茸茸治愈了你的心。（心态+10）");
+                break;
+            
+           case 'movie_ticket':
+                Game.updatePsyche(5);
+                State.ins += 1;
+                this.showModal("购买成功", "一场精彩的电影让你收获颇丰。（心态+5，灵感+1）");
+                break;
+            
+          case 'short_trip':
+                Game.updatePsyche(-20);
+                State.hp += 5;
+                this.showModal("购买成功", "给自己放个小假，精神得到了极大放松。（心态-20，HP+5）");
+                break;
+// --- 新增结束 ---
+            
+            case 'costume': // 高定考斯滕
+                State.art += 3; // 需要在 State.modifiers 里确保有这个字段
+                this.showModal("购买成功", "定制考斯滕让你的表演更动人了！");
+                break;
+            
+        // ... switch (itemId) 结束 ...
+            default:
+                this.showModal("购买成功", "你购买了 " + item.name);
+        }
+
+        // 7. 刷新界面
+        Game.enforceMaxStats(); // 【新增】在刷新界面前，强制检查并修正所有属性上限
+        this.updateDashboard();
+        this.openShop(); // 刷新商店UI以更新按钮状态
+    },
+
+    showEventModal: function(evt) {
+        const modal = document.getElementById('modal-event');
+        // 如果事件对象evt有自己的标题(title)，就用它的，否则就用默认的“随机事件”
+        document.getElementById('event-title').innerText = evt.title || "随机事件";
+        document.getElementById('event-desc').innerText = evt.text;
+        const optContainer = document.getElementById('event-options');
+        optContainer.innerHTML = '';
+
+        evt.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = opt.label;
+            btn.onclick = () => {
+                const feedback = opt.effect(State);
+                
+                Game.enforceMaxStats(); // 【新增】事件结算后，立即执行属性上限检查
+
+                UI.showModal("事件结果", feedback);
+                modal.style.display = 'none';
+                UI.updateDashboard();
+            };
+            optContainer.appendChild(btn);
+        });
+        modal.style.display = 'block';
+    },
+
+    triggerEnding: function(type) {
+        State.ended = true;
+        UI.switchScreen('screen-ending');
+        if (type === 'wind') {
+            document.getElementById('end-title').innerText = "彩蛋结局：风的传人";
+            document.getElementById('end-desc').innerText = "你脱下了考斯滕，换上了紧身的速度滑冰服。几年后，虽然花滑赛场少了一个天才，但短道速滑的世界纪录里，多了一个属于你的名字。";
+        } else if (type === 'injury') {
+            document.getElementById('end-title').innerText = "结局：遗憾离场";
+            document.getElementById('end-desc').innerText = "由于伤病，你遗憾离开了职业赛场。";
+        }
+      else if (type === 'idol') {
+            document.getElementById('end-title').innerText = "彩蛋结局：偶像人生";
+            document.getElementById('end-desc').innerText = "虽然告别了竞技赛场，但凭借绝佳的艺术感，你成为了全球瞩目的超级爱豆。从此，冰面不再是你的战场，但你的璀璨人生才刚刚开始。";
+        }
+      else if (type === 'boss') {
+            document.getElementById('end-title').innerText = "彩蛋结局：冰场大亨";
+            document.getElementById('end-desc').innerText = "很难说你是否征服了冰面，但你一定征服了整个体育产业。手中的财富让你成为ISU最大的赞助商，拥有无限的话语权。现在的你，不再需要通过裁判的打分来证明自己——因为你已经成为了规则的制定者。";
+        }
+      else if (type === 'bankrupt') {
+            document.getElementById('end-title').innerText = "结局：无米之炊";
+            document.getElementById('end-desc').innerText = "你破产了！这项烧钱的运动残忍地驱逐了你。";
+        }
+      else if (type === 'hp_zero') {
+            document.getElementById('end-title').innerText = "结局：健康最重要";
+            document.getElementById('end-desc').innerText = "虽然ISU时常表现得像要进入ICU，但失去了健康的你或许已经与这项运动无缘。";
+        }
+       else if (type === 'despair') {
+            document.getElementById('end-title').innerText = "结局：一场空";
+            document.getElementById('end-desc').innerText = "内外交困，你的健康与金钱都离你而去。";
+        }
+      else if (type === 'mental_breakdown') { // 新增结局
+    document.getElementById('end-title').innerText = "结局：心力交瘁";
+    document.getElementById('end-desc').innerText = "日复一日的焦虑和压力压垮了你。你再也无法从滑冰中找到乐趣，也失去了站上赛场的勇气。在无尽的内耗中，你的冰上生涯就此落幕。";}
+      else if (type === 'pairs') {
+            document.getElementById('end-title').innerText = "彩蛋结局：转行！";
+            document.getElementById('end-desc').innerText = "你迅速发现了自己在双人滑上的天赋。虽然和你预想中不同，但你最终站上了你梦中的那座领奖台。";
+        }
+    }, // <--- 1. 注意这里！为了连接下面的新函数，我加了一个英文逗号
+
+    /* --- [新增功能] 属性上限统一管理器 --- */
+    enforceMaxStats: function() {
+        // 定义我们需要限制的四个核心属性
+        const limits = ['art', 'bod', 'pow', 'ins'];
+        
+        // 遍历这四个属性，逐一检查
+        limits.forEach(key => {
+            // 如果属性存在且超过了 100
+            if (State[key] > 100) {
+                State[key] = 100; // 强制设为 100
+            }
+        });
+        
+        // 顺便也可以把 HP 的上限检查放在这里（可选），保持逻辑统一
+        let maxHp = 100 - State.hpCapMalus;
+        if (State.hp > maxHp) State.hp = maxHp;
+    }
+    /* --- [新增结束] --- */
+};
+
+// 启动游戏
+UI.renderPrologue();
+
+</script>
+</body>
+
+</html>
