@@ -999,7 +999,7 @@ const EventManager = {
       
       this.addNewEvent({
             id: "music-choice",
-            trigger: function(s) { return s.phase === 'season' && s.art > 40 && Math.random() < 0.15; },
+            trigger: function(s) { return s.phase === 'offseason' && s.art > 40 && Math.random() < 0.15; },
             probability: 1.0,
             text: "你需要选择自己下赛季的选曲。",
             options: [
