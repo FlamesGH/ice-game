@@ -1771,7 +1771,7 @@ const Game = {
                 // B2: 没比赛了，说明玩家点击的是"赛季结束"按钮
                 // 1. 生成总结报告HTML字符串
             let summary = `<h3 style="text-align:center;">本赛季总结</h3><ul style="text-align:left; list-style-position: inside; padding-left:0;">`;
-            summary += `<li>国际赛资格：${State.seasonQualified ? ${State.seasonQualified ? '是'  : '否'}</li>`;
+            summary += `<li>国际赛资格：${State.seasonQualified ? `是 ${State.luckyFish ? '(<span style=\\"color:#e17055;\\">幸运递补</span>)' : ''}` : '否'}</li>`;
             summary += `<li>总决赛资格：${State.qualifiedForGPFinalThisSeason ? '<span style=\\"color:#00b894;\\">是</span>' : '否'}</li>`;
             summary += `<hr style="border:none; border-top:1px dashed #ccc; margin: 8px 0;">`;
             summary += `<li>训练次数：${State.trainsThisSeason}</li>`;
@@ -2664,5 +2664,6 @@ UI.renderPrologue();
 </body>
 
 </html>
+
 
 
